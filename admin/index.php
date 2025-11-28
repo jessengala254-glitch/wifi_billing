@@ -13,6 +13,31 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 $pdo = db();
 $pdo->exec("SET time_zone = '+03:00'");
 
+// get admin display name (prefer session username, fallback to DB lookup)
+$adminName = 'Admin';
+if (!empty($_SESSION['username'])) {
+    $adminName = $_SESSION['username'];
+} elseif (!empty($_SESSION['user_id'])) {
+    $stmt = $pdo->prepare("SELECT name, username FROM users WHERE id = ? LIMIT 1");
+    $stmt->execute([$_SESSION['user_id']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row) {
+        $adminName = $row['name'] ?: $row['username'] ?: $adminName;
+    }
+}
+
+// compute greeting based on server local hour
+$hour = (int) date('G');
+if ($hour >= 5 && $hour < 12) {
+    $greeting = 'Good morning';
+} elseif ($hour >= 12 && $hour < 17) {
+    $greeting = 'Good afternoon';
+} elseif ($hour >= 17 && $hour < 22) {
+    $greeting = 'Good evening';
+} else {
+    $greeting = 'Hello';
+}
+
 try {
     // Total users
     $totalUsers = $pdo->query("SELECT COUNT(*) AS total FROM users WHERE voucher_id IS NOT NULL")->fetch()['total'] ?? 0;
@@ -157,7 +182,8 @@ try {
 <?php include 'sidebar.php'; ?>
 
 <div class="main-content">
-  <h1>Welcome to Leo Konnect Admin Dashboard</h1>
+  <!-- <h1>Welcome to Leo Konnect Admin Dashboard</h1> -->
+    <h1 style="text-align: left;"><?= htmlspecialchars($greeting . ' ' . $adminName) ?></h1>
 
   <div class="cards">
     <div class="card">
