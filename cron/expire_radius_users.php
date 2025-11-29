@@ -9,8 +9,8 @@ error_reporting(E_ALL);
 
 // require helpers
 require_once __DIR__ . '/../inc/functions.php';
-require_once __DIR__ . '/../inc/mikrotik.php';      // should expose mikrotik_connect() or RouterOS details
-require_once __DIR__ . '/../inc/routeros_api.php';  // RouterosAPI class (fallback if needed)
+require_once __DIR__ . '/../inc/mikrotik.php'; 
+//require_once __DIR__ . '/../inc/routeros_api.class.php'; 
 $config = require __DIR__ . '/../inc/config.php';
 
 function sanitize_mac($mac) {
@@ -236,16 +236,19 @@ foreach ($rows as $r) {
         $log("radius_logs_insert_error: " . $e->getMessage(), 'error');
     }
 
-    // 4.9 Optional notify the user if you have a user_id linked to the session
+    //4.9 Optional notify the user if you have a user_id linked to the session
     if ($session_user_id) {
         try {
-            $usr = $pdo->prepare("SELECT email, phone FROM users WHERE id=? LIMIT 1");
+            $usr = $pdo->prepare("SELECT phone FROM users WHERE id=? LIMIT 1");
             $usr->execute([$session_user_id]);
             $u = $usr->fetch(PDO::FETCH_ASSOC);
-            if ($u) {
+            if ($u && !empty($u['phone'])) {
                 $msg = "Your internet plan expired at " . ($r['session_expires_at'] ?? 'now') . ". Renew to regain access.";
-                send_email($u['email'], "Your Plan Has Expired", $msg);
+                // Email notifications removed; only send SMS
                 send_sms($u['phone'], $msg);
+                $log("notify_sms_sent", 'system');
+            } else {
+                $log("notify_skipped_no_phone", 'system');
             }
         } catch (Exception $e) {
             $log("notify_error: " . $e->getMessage(), 'error');

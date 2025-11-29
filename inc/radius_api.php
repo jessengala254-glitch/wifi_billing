@@ -7,6 +7,8 @@ ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 header('Content-Type: application/json; charset=utf-8');
 
+error_log("DEBUG: create_voucher request received at " . date('Y-m-d H:i:s'));
+
 require_once __DIR__ . '/functions.php';     
 require_once __DIR__ . '/routeros_api.class.php'; 
 $config = require __DIR__ . '/config.php';
@@ -198,19 +200,245 @@ $nas_ip = $payload['nas_ip'] ?? $payload['NAS-IP-Address'] ?? null;
 $plan_type  = $payload['plan_type'] ?? null;
 $duration_mins = isset($payload['duration_mins']) ? (int)$payload['duration_mins'] : null;
 
+
+// -------------------- create_voucher endpoint --------------------
+// if ($type === 'create_voucher') {
+//     date_default_timezone_set('Africa/Nairobi');
+//     // --- Get client IP ---
+//     $client_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+//     // --- Get phone from payload ---
+//     $customer_phone = $payload['phone'] ?? null; 
+//     if (!$customer_phone) {
+//         respond(['error' => 'phone is required'], 400);
+//     }
+
+//     // --- Determine plan ---
+//     $plan_identifier = $payload['plan_id'] ?? $payload['plan_title'] ?? null;
+//     if (!$plan_identifier) {
+//         respond(['error' => 'plan_id or plan_title required'], 400);
+//     }
+
+//     // --- Fetch plan ---
+//     if (isset($payload['plan_id'])) {
+//         $stmt = $pdo->prepare("SELECT * FROM plans WHERE id = ? AND active = 1 LIMIT 1");
+//         $stmt->execute([$payload['plan_id']]);
+//     } else {
+//         $stmt = $pdo->prepare("SELECT * FROM plans WHERE title = ? AND active = 1 LIMIT 1");
+//         $stmt->execute([$payload['plan_title']]);
+//     }
+//     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+//     if (!$plan) {
+//         respond(['error' => 'Plan not found or inactive'], 404);
+//     }
+
+//     // --- Duration ---
+//     $duration_minutes = isset($payload['duration_mins']) 
+//         ? (int)$payload['duration_mins'] 
+//         : (int)$plan['duration_minutes'];
+
+//     // --- Generate voucher credentials ---
+//     $voucher_username = 'LEONET' . mt_rand(100, 9999);
+//     $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+//     $voucher_password_plain = '';
+//     for ($i = 0; $i < 6; $i++) {
+//         $voucher_password_plain .= $chars[random_int(0, strlen($chars) - 1)];
+//     }
+
+//     // --- Calculate expiry ---
+//     $start_time = date('Y-m-d H:i:s');
+//     $expiry = date('Y-m-d H:i:s', strtotime("+$duration_minutes minutes"));
+
+//     // --- Rate Limit ---
+//     $plan_type_key = strtolower(str_replace(' ', '', $plan['title']));
+//     $rate_limit = $BANDWIDTH_BY_PLAN[$plan_type_key] ?? '5M/5M';
+
+//     // --- Human readable label ---
+//     if ($duration_minutes >= 10080) {
+//         $plan_type_label = '1 Week';
+//     } elseif ($duration_minutes >= 1440) {
+//         $plan_type_label = '1 Day';
+//     } elseif ($duration_minutes >= 60) {
+//         $plan_type_label = '1 Hour';
+//     } else {
+//         $plan_type_label = $plan['title'];
+//     }
+
+//     // if a phone was provided, try to top-up (extend) an existing voucher instead of creating a new one
+//     if (!empty($phone)) {
+//         // fetch plan details
+//         $planStmt = $pdo->prepare("SELECT id, name AS plan_name, rate_limit FROM plans WHERE id = ? LIMIT 1");
+//         $planStmt->execute([$plan_id]);
+//         $planRow = $planStmt->fetch(PDO::FETCH_ASSOC);
+//         $plan_name = $planRow['plan_name'] ?? ($plan_name ?? 'Custom');
+//         $rate_limit = $planRow['rate_limit'] ?? ($rate_limit ?? '5M/5M');
+
+//         $find = $pdo->prepare("SELECT * FROM vouchers WHERE phone = ? ORDER BY expiry DESC, created_at DESC LIMIT 1");
+//         $find->execute([$phone]);
+//         $existing = $find->fetch(PDO::FETCH_ASSOC);
+
+//         if ($existing) {
+//             // compute extension duration (use provided duration_mins if available)
+//             $durationSecs = (!empty($duration_mins) ? intval($duration_mins) * 60 : 0);
+//             if ($durationSecs <= 0 && !empty($planRow)) {
+//                 // fallback: try to derive duration from plan (if you store it) else use 24h
+//                 $durationSecs = 24 * 3600;
+//             }
+
+//             $now = time();
+//             $currentExpiry = !empty($existing['expiry']) ? strtotime($existing['expiry']) : 0;
+//             $base = ($currentExpiry > $now) ? $currentExpiry : $now;
+//             $newExpiry = date('Y-m-d H:i:s', $base + $durationSecs);
+
+//             $upd = $pdo->prepare("UPDATE vouchers SET expiry = ?, plan_id = ?, plan_type = ?, rate_limit = ?, status = 'active' WHERE id = ?");
+//             $upd->execute([$newExpiry, $plan_id, $plan_name, $rate_limit, $existing['id']]);
+
+//             // log top-up (no phone column in radius_logs assumed)
+//             $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'create_voucher', 'ok', ?, ?)")
+//                 ->execute([$existing['username'], 'topped_up', $_SERVER['REMOTE_ADDR'] ?? null]);
+
+//             respond([
+//                 'result' => 'ok',
+//                 'action' => 'topped_up',
+//                 'username' => $existing['username'],
+//                 'expiry' => $newExpiry
+//             ]);
+//         }
+//     }//end of phone top-up
+
+//     // --- Insert voucher ---
+//     $stmt = $pdo->prepare("
+//         INSERT INTO vouchers (
+//             username, password, plan_type, expiry, rate_limit, status, created_at, plan_id, phone
+//         ) VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?)
+//     ");
+//     $stmt->execute([
+//         $voucher_username,
+//         password_hash($voucher_password_plain, PASSWORD_DEFAULT),
+//         $plan_type_label,
+//         $expiry,
+//         $rate_limit,
+//         $plan['id'],
+//         $customer_phone
+//     ]);
+//     $voucher_id = $pdo->lastInsertId();
+
+//     // --- Auto-create user ---
+//     $userInsert = $pdo->prepare("
+//         INSERT INTO users (name, email, phone, username, password, role, voucher_id)
+//         VALUES (?, ?, ?, ?, ?, 'user', ?)
+//     ");
+//     $userInsert->execute([
+//         $voucher_username,
+//         null,
+//         $customer_phone,
+//         $voucher_username,
+//         password_hash($voucher_password_plain, PASSWORD_DEFAULT),
+//         $voucher_id
+//     ]);
+//     $user_id = $pdo->lastInsertId();
+
+//     // 1️⃣ Insert Cleartext password
+//     $insertRad = $pdo->prepare("
+//         INSERT INTO radcheck (username, attribute, op, value)
+//         VALUES (?, 'Cleartext-Password', ':=', ?)
+//     ");
+//     $insertRad->execute([$voucher_username, $voucher_password_plain]);
+
+//     // 2️⃣ Insert Session-Timeout
+//     $session_seconds = $duration_minutes * 60;
+
+//     $pdo->prepare("DELETE FROM radcheck WHERE username=? AND attribute='Session-Timeout'")
+//         ->execute([$voucher_username]);
+
+//     $insertTimeout = $pdo->prepare("
+//         INSERT INTO radcheck (username, attribute, op, value)
+//         VALUES (?, 'Session-Timeout', ':=', ?)
+//     ");
+//     $insertTimeout->execute([$voucher_username, $session_seconds]);
+
+//     // 3️⃣ Expiration (FreeRADIUS date)
+//     $radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
+//     $insertExpiry = $pdo->prepare("
+//         INSERT INTO radcheck (username, attribute, op, value)
+//         VALUES (?, 'Expiration', ':=', ?)
+//     ");
+//     $insertExpiry->execute([$voucher_username, $radius_expire_format]);
+
+//     // 4️⃣ Rate Limit
+//     $insertRate = $pdo->prepare("
+//         INSERT INTO radreply (username, attribute, op, value)
+//         VALUES (?, 'Mikrotik-Rate-Limit', ':=', ?)
+//     ");
+//     $insertRate->execute([$voucher_username, $rate_limit]);
+
+//     // --- Create session entry ---
+//     $sessionInsert = $pdo->prepare("
+//         INSERT INTO sessions (user_id, hotspot_username, hotspot_password, plan_id, started_at, expires_at, active, created_at)
+//         VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+//     ");
+//     $sessionInsert->execute([
+//         $user_id,
+//         $voucher_username,
+//         $voucher_password_plain,
+//         $plan['id'],
+//         $start_time,
+//         $expiry
+//     ]);
+
+//     // --- Create payment record ---
+//     $paymentInsert = $pdo->prepare("
+//         INSERT INTO payments (user_id, plan_id, phone, amount, status, created_at)
+//         VALUES (?, ?, ?, ?, 'success', NOW())
+//     ");
+//     $paymentInsert->execute([
+//         $user_id,
+//         $plan['id'],
+//         $customer_phone,
+//         $plan['price'] ?? 0
+//     ]);
+
+//     // --- Log ---
+//     $pdo->prepare("
+//         INSERT INTO radius_logs (username, event_type, result, message, client_ip)
+//         VALUES (?, 'system', 'ok', 'voucher created', ?)
+//     ")->execute([
+//         $voucher_username,
+//         $client_ip
+//     ]);
+
+//     // --- Response ---
+//     respond([
+//         'result' => 'ok',
+//         'voucher' => [
+//             'username'   => $voucher_username,
+//             'password'   => $voucher_password_plain,
+//             'expiry'     => $expiry,
+//             'plan_type'  => $plan_type_label,
+//             'rate_limit' => $rate_limit
+//         ],
+//         'session' => [
+//             'hotspot_username' => $voucher_username,
+//             'hotspot_password' => $voucher_password_plain,
+//             'started_at'       => $start_time,
+//             'expires_at'       => $expiry
+//         ]
+//     ]);
+// }
+
+
 // -------------------- create_voucher endpoint --------------------
 if ($type === 'create_voucher') {
     date_default_timezone_set('Africa/Nairobi');
-    // --- Get client IP ---
     $client_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
-    // --- Get phone from payload ---
-    $customer_phone = $payload['phone'] ?? null; 
+    // --- Validate phone ---
+    $customer_phone = $payload['phone'] ?? null;
     if (!$customer_phone) {
         respond(['error' => 'phone is required'], 400);
     }
 
-    // --- Determine plan ---
+    // --- Validate plan ---
     $plan_identifier = $payload['plan_id'] ?? $payload['plan_title'] ?? null;
     if (!$plan_identifier) {
         respond(['error' => 'plan_id or plan_title required'], 400);
@@ -229,28 +457,12 @@ if ($type === 'create_voucher') {
         respond(['error' => 'Plan not found or inactive'], 404);
     }
 
-    // --- Duration ---
+    // --- Get duration ---
     $duration_minutes = isset($payload['duration_mins']) 
         ? (int)$payload['duration_mins'] 
-        : (int)$plan['duration_minutes'];
+        : (int)($plan['duration_minutes'] ?? 1440);
 
-    // --- Generate voucher credentials ---
-    $voucher_username = 'LEONET' . mt_rand(100, 9999);
-    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    $voucher_password_plain = '';
-    for ($i = 0; $i < 6; $i++) {
-        $voucher_password_plain .= $chars[random_int(0, strlen($chars) - 1)];
-    }
-
-    // --- Calculate expiry ---
-    $start_time = date('Y-m-d H:i:s');
-    $expiry = date('Y-m-d H:i:s', strtotime("+$duration_minutes minutes"));
-
-    // --- Rate Limit ---
-    $plan_type_key = strtolower(str_replace(' ', '', $plan['title']));
-    $rate_limit = $BANDWIDTH_BY_PLAN[$plan_type_key] ?? '5M/5M';
-
-    // --- Human readable label ---
+    // --- Calculate plan label ---
     if ($duration_minutes >= 10080) {
         $plan_type_label = '1 Week';
     } elseif ($duration_minutes >= 1440) {
@@ -258,14 +470,86 @@ if ($type === 'create_voucher') {
     } elseif ($duration_minutes >= 60) {
         $plan_type_label = '1 Hour';
     } else {
-        $plan_type_label = $plan['title'];
+        $plan_type_label = $plan['title'] ?? '3 Hours';
     }
+
+    // --- Get rate limit ---
+    $plan_type_key = strtolower(str_replace(' ', '', $plan['title']));
+    $rate_limit = $BANDWIDTH_BY_PLAN[$plan_type_key] ?? '5M/5M';
+
+    // ========== TOP-UP LOGIC: Check if phone already has active voucher ==========
+    $topup_check = $pdo->prepare("SELECT * FROM vouchers WHERE phone = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1");
+    $topup_check->execute([$customer_phone]);
+    $existing_voucher = $topup_check->fetch(PDO::FETCH_ASSOC);
+
+    if ($existing_voucher) {
+        // TOP-UP: Extend the existing voucher's expiry
+        $now = time();
+        $current_expiry = strtotime($existing_voucher['expiry']);
+        
+        // If already expired, start from now; otherwise extend from current expiry
+        $base_time = ($current_expiry > $now) ? $current_expiry : $now;
+        $new_expiry = date('Y-m-d H:i:s', $base_time + ($duration_minutes * 60));
+
+        // Update existing voucher
+        $upd = $pdo->prepare("
+            UPDATE vouchers 
+            SET expiry = ?, plan_id = ?, plan_type = ?, rate_limit = ?, status = 'active'
+            WHERE id = ?
+        ");
+        $upd->execute([$new_expiry, $plan['id'], $plan_type_label, $rate_limit, $existing_voucher['id']]);
+
+        // Update FreeRADIUS records for extended session
+        $session_seconds = $duration_minutes * 60;
+        $radius_expire_format = date("d M Y H:i:s", strtotime($new_expiry));
+
+        $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Session-Timeout'")
+            ->execute([$existing_voucher['username']]);
+        $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Session-Timeout', ':=', ?)")
+            ->execute([$existing_voucher['username'], $session_seconds]);
+
+        $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Expiration'")
+            ->execute([$existing_voucher['username']]);
+        $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Expiration', ':=', ?)")
+            ->execute([$existing_voucher['username'], $radius_expire_format]);
+
+        // Log the top-up
+        $pdo->prepare("
+            INSERT INTO radius_logs (username, event_type, result, message, client_ip)
+            VALUES (?, 'create_voucher', 'ok', ?, ?)
+        ")->execute([$existing_voucher['username'], 'topped_up', $client_ip]);
+
+        // Return top-up response
+        respond([
+            'result' => 'ok',
+            'action' => 'topped_up',
+            'username' => $existing_voucher['username'],
+            'old_expiry' => $existing_voucher['expiry'],
+            'new_expiry' => $new_expiry,
+            'rate_limit' => $rate_limit
+        ]);
+    }
+
+    // ========== NEW VOUCHER: No active voucher for this phone, create new one ==========
+
+    // --- Generate credentials ---
+    $voucher_username = 'LEONET' . mt_rand(1000, 9999);
+    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    $voucher_password_plain = '';
+    for ($i = 0; $i < 6; $i++) {
+        $voucher_password_plain .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+
+    // --- Calculate times ---
+    $start_time = date('Y-m-d H:i:s');
+    $expiry = date('Y-m-d H:i:s', strtotime("+$duration_minutes minutes"));
+    $session_seconds = $duration_minutes * 60;
+    $radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
 
     // --- Insert voucher ---
     $stmt = $pdo->prepare("
-        INSERT INTO vouchers (
-            username, password, plan_type, expiry, rate_limit, status, created_at, plan_id, phone
-        ) VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?)
+        INSERT INTO vouchers (username, password, plan_type, expiry, rate_limit, status, created_at, plan_id, phone)
+        VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?)
     ");
     $stmt->execute([
         $voucher_username,
@@ -278,54 +562,50 @@ if ($type === 'create_voucher') {
     ]);
     $voucher_id = $pdo->lastInsertId();
 
-    // --- Auto-create user ---
-    $userInsert = $pdo->prepare("
-        INSERT INTO users (name, email, phone, username, password, role, voucher_id)
-        VALUES (?, ?, ?, ?, ?, 'user', ?)
-    ");
-    $userInsert->execute([
-        $voucher_username,
-        null,
-        $customer_phone,
-        $voucher_username,
-        password_hash($voucher_password_plain, PASSWORD_DEFAULT),
-        $voucher_id
-    ]);
-    $user_id = $pdo->lastInsertId();
+    // --- Insert into users table (auto-create user) ---
+    // ⚠️ Handle duplicate phone constraint: only insert if phone not already in users
+    try {
+        $userInsert = $pdo->prepare("
+            INSERT INTO users (name, email, phone, username, password, role, voucher_id)
+            VALUES (?, ?, ?, ?, ?, 'user', ?)
+        ");
+        $userInsert->execute([
+            $voucher_username,
+            null,
+            $customer_phone,
+            $voucher_username,
+            password_hash($voucher_password_plain, PASSWORD_DEFAULT),
+            $voucher_id
+        ]);
+        $user_id = $pdo->lastInsertId();
+    } catch (Exception $e) {
+        // If phone already exists in users, just use the existing user
+        $existingUser = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
+        $existingUser->execute([$customer_phone]);
+        $user_id = $existingUser->fetchColumn();
+        if (!$user_id) {
+            $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'create_voucher', 'error', ?)")
+                ->execute([$voucher_username, 'user_creation_failed: ' . $e->getMessage()]);
+            respond(['error' => 'Failed to create user record'], 500);
+        }
+    }
 
-    // 1️⃣ Insert Cleartext password
-    $insertRad = $pdo->prepare("
-        INSERT INTO radcheck (username, attribute, op, value)
-        VALUES (?, 'Cleartext-Password', ':=', ?)
-    ");
-    $insertRad->execute([$voucher_username, $voucher_password_plain]);
+    // --- Insert FreeRADIUS records ---
+    // 1. Cleartext Password
+    $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Cleartext-Password', ':=', ?)")
+        ->execute([$voucher_username, $voucher_password_plain]);
 
-    // 2️⃣ Insert Session-Timeout
-    $session_seconds = $duration_minutes * 60;
+    // 2. Session Timeout
+    $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Session-Timeout', ':=', ?)")
+        ->execute([$voucher_username, $session_seconds]);
 
-    $pdo->prepare("DELETE FROM radcheck WHERE username=? AND attribute='Session-Timeout'")
-        ->execute([$voucher_username]);
+    // 3. Expiration
+    $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Expiration', ':=', ?)")
+        ->execute([$voucher_username, $radius_expire_format]);
 
-    $insertTimeout = $pdo->prepare("
-        INSERT INTO radcheck (username, attribute, op, value)
-        VALUES (?, 'Session-Timeout', ':=', ?)
-    ");
-    $insertTimeout->execute([$voucher_username, $session_seconds]);
-
-    // 3️⃣ Expiration (FreeRADIUS date)
-    $radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
-    $insertExpiry = $pdo->prepare("
-        INSERT INTO radcheck (username, attribute, op, value)
-        VALUES (?, 'Expiration', ':=', ?)
-    ");
-    $insertExpiry->execute([$voucher_username, $radius_expire_format]);
-
-    // 4️⃣ Rate Limit
-    $insertRate = $pdo->prepare("
-        INSERT INTO radreply (username, attribute, op, value)
-        VALUES (?, 'Mikrotik-Rate-Limit', ':=', ?)
-    ");
-    $insertRate->execute([$voucher_username, $rate_limit]);
+    // 4. Rate Limit (radreply)
+    $pdo->prepare("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Mikrotik-Rate-Limit', ':=', ?)")
+        ->execute([$voucher_username, $rate_limit]);
 
     // --- Create session entry ---
     $sessionInsert = $pdo->prepare("
@@ -353,16 +633,13 @@ if ($type === 'create_voucher') {
         $plan['price'] ?? 0
     ]);
 
-    // --- Log ---
+    // --- Log voucher creation ---
     $pdo->prepare("
         INSERT INTO radius_logs (username, event_type, result, message, client_ip)
-        VALUES (?, 'system', 'ok', 'voucher created', ?)
-    ")->execute([
-        $voucher_username,
-        $client_ip
-    ]);
+        VALUES (?, 'create_voucher', 'ok', 'voucher_created', ?)
+    ")->execute([$voucher_username, $client_ip]);
 
-    // --- Response ---
+    // --- Return response ---
     respond([
         'result' => 'ok',
         'voucher' => [
@@ -380,7 +657,6 @@ if ($type === 'create_voucher') {
         ]
     ]);
 }
-
 
 // -------------------- Rate-limiting check for authenticate/authorize --------------------
 if (in_array($type, ['authenticate','authorize'])) {
@@ -429,16 +705,19 @@ if ($type === 'authorize') {
         $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authorize', 'reject', ?, ?)")->execute([$username, 'voucher_not_found', $client_ip]);
         respond(['result' => 'reject', 'message' => 'Voucher not found']);
     }
-    if ($v['status'] !== 'active') {
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'reject', ?)")->execute([$username, 'voucher_not_active']);
-        respond(['result' => 'reject', 'message' => 'Voucher not active']);
+
+    // ✅ CHECK EXPIRY FIRST (before status check)
+    if (!empty($v['expiry']) && strtotime($v['expiry']) < time()) {
+        // Update status atomically
+        $pdo->prepare("UPDATE vouchers SET status='expired' WHERE id = ?")->execute([$v['id']]);
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authorize', 'reject', ?, ?)")->execute([$username, 'expired', $client_ip]);
+        respond(['result' => 'reject', 'message' => 'Voucher expired']);
     }
 
-    // expiry check
-    if (!empty($v['expiry']) && strtotime($v['expiry']) < time()) {
-        $pdo->prepare("UPDATE vouchers SET status='expired' WHERE id = ?")->execute([$v['id']]);
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'reject', ?)")->execute([$username, 'expired']);
-        respond(['result' => 'reject', 'message' => 'Expired']);
+    // NOW check status
+    if ($v['status'] !== 'active') {
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authorize', 'reject', ?, ?)")->execute([$username, 'voucher_not_active', $client_ip]);
+        respond(['result' => 'reject', 'message' => 'Voucher not active']);
     }
 
     // MAC binding (priority: vouchers.mac_address -> radcheck Calling-Station-Id)
@@ -515,7 +794,7 @@ if ($type === 'authorize') {
         $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'reject', ?)")->execute([$username, 'ip_mismatch']);
         respond(['result' => 'reject', 'message' => 'IP binding mismatch']);
     }
-    
+
 
     // Build reply attributes
     $reply_attributes = [];
