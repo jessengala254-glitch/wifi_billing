@@ -50,30 +50,30 @@ function verify_password($password, $hash) {
  * 4️⃣ Email Sender
  * ----------------------------------------
  */
-function send_email($to, $subject, $body) {
-    global $config;
-    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+// function send_email($to, $subject, $body) {
+//     global $config;
+//     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
 
-    try {
-        $mail->isSMTP();
-        $mail->Host = $config['mail']['host'];
-        $mail->SMTPAuth = true;
-        $mail->Username = $config['mail']['username'];
-        $mail->Password = $config['mail']['password'];
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = $config['mail']['port'];
+//     try {
+//         $mail->isSMTP();
+//         $mail->Host = $config['mail']['host'];
+//         $mail->SMTPAuth = true;
+//         $mail->Username = $config['mail']['username'];
+//         $mail->Password = $config['mail']['password'];
+//         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+//         $mail->Port = $config['mail']['port'];
 
-        $mail->setFrom($config['mail']['from_email'], $config['mail']['from_name']);
-        $mail->addAddress($to);
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body = $body;
-        $mail->send();
+//         $mail->setFrom($config['mail']['from_email'], $config['mail']['from_name']);
+//         $mail->addAddress($to);
+//         $mail->isHTML(true);
+//         $mail->Subject = $subject;
+//         $mail->Body = $body;
+//         $mail->send();
 
-    } catch (Exception $e) {
-        error_log('Mail error: ' . $mail->ErrorInfo);
-    }
-}
+//     } catch (Exception $e) {
+//         error_log('Mail error: ' . $mail->ErrorInfo);
+//     }
+// }
 
 /**
  * ----------------------------------------
@@ -81,7 +81,50 @@ function send_email($to, $subject, $body) {
  * ----------------------------------------
  */
 function send_sms($phone, $message) {
-    error_log("SMS to $phone: $message");
+    global $config;
+    
+    $sms_config = $config['sms'] ?? [];
+    $api_key = $sms_config['api_key'] ?? null;
+    $api_url = $sms_config['api_url'] ?? 'https://api.simflix.co.ke/send'; // Adjust if needed
+    $sender_id = $sms_config['sender_id'] ?? 'LEOKONNECT';
+    
+    if (!$api_key) {
+        error_log("SMS ERROR: Missing SimFlix API key");
+        return false;
+    }
+
+    // Format phone number (remove leading 0, add 254)
+    if (strpos($phone, '0') === 0) {
+        $phone = '254' . substr($phone, 1);
+    }
+
+    $data = [
+        'phone' => $phone,
+        'message' => $message,
+        'sender_id' => $sender_id
+    ];
+
+    $ch = curl_init($api_url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer $api_key",
+        "Content-Type: application/json"
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($http_code === 200 || $http_code === 201) {
+        error_log("SMS sent to $phone via SimFlix: SUCCESS");
+        return true;
+    } else {
+        error_log("SMS ERROR to $phone: HTTP $http_code - $response");
+        return false;
+    }
 }
 
 /**

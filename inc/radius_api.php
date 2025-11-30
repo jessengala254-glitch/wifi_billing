@@ -544,7 +544,8 @@ if ($type === 'create_voucher') {
     $start_time = date('Y-m-d H:i:s');
     $expiry = date('Y-m-d H:i:s', strtotime("+$duration_minutes minutes"));
     $session_seconds = $duration_minutes * 60;
-    $radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
+    $radius_expire_format = date("d M Y Y H:i:s", strtotime($expiry));
+    //$radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
 
     // --- Insert voucher ---
     $stmt = $pdo->prepare("
@@ -564,31 +565,71 @@ if ($type === 'create_voucher') {
 
     // --- Insert into users table (auto-create user) ---
     // ⚠️ Handle duplicate phone constraint: only insert if phone not already in users
-    try {
-        $userInsert = $pdo->prepare("
-            INSERT INTO users (name, email, phone, username, password, role, voucher_id)
-            VALUES (?, ?, ?, ?, ?, 'user', ?)
-        ");
-        $userInsert->execute([
-            $voucher_username,
-            null,
-            $customer_phone,
-            $voucher_username,
-            password_hash($voucher_password_plain, PASSWORD_DEFAULT),
-            $voucher_id
-        ]);
-        $user_id = $pdo->lastInsertId();
-    } catch (Exception $e) {
-        // If phone already exists in users, just use the existing user
-        $existingUser = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
-        $existingUser->execute([$customer_phone]);
-        $user_id = $existingUser->fetchColumn();
-        if (!$user_id) {
-            $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'create_voucher', 'error', ?)")
-                ->execute([$voucher_username, 'user_creation_failed: ' . $e->getMessage()]);
-            respond(['error' => 'Failed to create user record'], 500);
-        }
+    // try {
+    //     $userInsert = $pdo->prepare("
+    //         INSERT INTO users (name, email, phone, username, password, role, voucher_id)
+    //         VALUES (?, ?, ?, ?, ?, 'user', ?)
+    //     ");
+    //     $userInsert->execute([
+    //         $voucher_username,
+    //         null,
+    //         $customer_phone,
+    //         $voucher_username,
+    //         password_hash($voucher_password_plain, PASSWORD_DEFAULT),
+    //         $voucher_id
+    //     ]);
+    //     $user_id = $pdo->lastInsertId();
+
+    // // $user_id = $pdo->lastInsertId();
+    // } catch (Exception $e) {
+    //     // If phone already exists in users, just use the existing user
+    //     $existingUser = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
+    //     $existingUser->execute([$customer_phone]);
+    //     $user_id = $existingUser->fetchColumn();
+    //     if (!$user_id) {
+    //         $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'create_voucher', 'error', ?)")
+    //             ->execute([$voucher_username, 'user_creation_failed: ' . $e->getMessage()]);
+    //         respond(['error' => 'Failed to create user record'], 500);
+    //     }
+    // }
+
+    // --- Insert into users table (auto-create user) ---
+try {
+    $userInsert = $pdo->prepare("
+        INSERT INTO users (name, email, phone, username, password, role, voucher_id)
+        VALUES (?, ?, ?, ?, ?, 'user', ?)
+    ");
+    $userInsert->execute([
+        $voucher_username,
+        null,
+        $customer_phone,
+        $voucher_username,
+        password_hash($voucher_password_plain, PASSWORD_DEFAULT),
+        $voucher_id
+    ]);
+    $user_id = $pdo->lastInsertId();
+
+    // 🔥 FIX: link voucher → user
+    $updVoucherUser = $pdo->prepare("UPDATE vouchers SET user_id = ? WHERE id = ?");
+    $updVoucherUser->execute([$user_id, $voucher_id]);
+
+} catch (Exception $e) {
+
+    $existingUser = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
+    $existingUser->execute([$customer_phone]);
+    $user_id = $existingUser->fetchColumn();
+
+    if (!$user_id) {
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'create_voucher', 'error', ?)")
+            ->execute([$voucher_username, 'user_creation_failed: ' . $e->getMessage()]);
+        respond(['error' => 'Failed to create user record'], 500);
     }
+
+    // 🔥 FIX: link voucher → user (existing user case)
+    $updVoucherUser = $pdo->prepare("UPDATE vouchers SET user_id = ? WHERE id = ?");
+    $updVoucherUser->execute([$user_id, $voucher_id]);
+}
+
 
     // --- Insert FreeRADIUS records ---
     // 1. Cleartext Password
