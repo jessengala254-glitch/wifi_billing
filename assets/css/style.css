@@ -933,8 +933,8 @@ main {
     }
 
     .active-plan-card {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: #fff;
+      background: linear-gradient(135deg, var(--secondary), var(--primary));
+      color: #000000;
       border-radius: 15px;
       padding: 25px 30px;
       margin-bottom: 40px;

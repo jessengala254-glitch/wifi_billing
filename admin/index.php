@@ -46,13 +46,17 @@ try {
     $totalPlans = $pdo->query("SELECT COUNT(*) AS total FROM plans")->fetch()['total'] ?? 0;
 
     // Total revenue
+    // $totalRevenue = $pdo->query("
+    //     SELECT IFNULL(SUM(p.amount),0) AS total
+    //     FROM payments p
+    //     INNER JOIN vouchers v ON p.plan_id = v.plan_id
+    //     WHERE p.status = 'success'
+    // ")->fetch()['total'] ?? 0;
     $totalRevenue = $pdo->query("
-        SELECT IFNULL(SUM(p.amount),0) AS total
-        FROM payments p
-        INNER JOIN vouchers v ON p.plan_id = v.plan_id
-        WHERE p.status = 'success'
+        SELECT IFNULL(SUM(amount),0) AS total
+        FROM payments
+        WHERE status = 'success'
     ")->fetch()['total'] ?? 0;
-
 
     // Active subscriptions (count active vouchers)
     $activeSubs = $pdo->query("

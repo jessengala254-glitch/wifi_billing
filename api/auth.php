@@ -60,60 +60,173 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
         exit;
     }
 
-    //--- Voucher User Login ---
-    $stmt = $pdo->prepare("SELECT * FROM vouchers WHERE username=? LIMIT 1");
-    $stmt->execute([$username]);
-    $voucher = $stmt->fetch();
+    // //--- Voucher User Login ---
+    // $stmt = $pdo->prepare("SELECT * FROM vouchers WHERE username=? LIMIT 1");
+    // $stmt->execute([$username]);
+    // $voucher = $stmt->fetch();
 
-    if (!$voucher) {
-        header("Location: ../login.php?invalid=1");
-        exit;
-    }
+    // if (!$voucher) {
+    //     header("Location: ../login.php?invalid=1");
+    //     exit;
+    // }
 
-    // Check password
-    if (!verify_password($password, $voucher['password'])) {
-        header("Location: ../login.php?error=1");
-        exit;
-    }
+    // // Check password
+    // if (!verify_password($password, $voucher['password'])) {
+    //     header("Location: ../login.php?error=1");
+    //     exit;
+    // }
 
-    // 🚫 BLOCK LOGIN IF VOUCHER IS EXPIRED
-    if (strtotime($voucher['expiry']) < time()) {
-        header("Location: ../login.php?expired=1");
-        exit;
-    }
+    // // 🚫 BLOCK LOGIN IF VOUCHER IS EXPIRED
+    // if (strtotime($voucher['expiry']) < time()) {
+    //     header("Location: ../login.php?expired=1");
+    //     exit;
+    // }
 
-    // Fetch the user from users table
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE voucher_id = ? LIMIT 1");
-    $stmt->execute([$voucher['id']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    // // Fetch the user from users table
+    // $stmt = $pdo->prepare("SELECT * FROM users WHERE voucher_id = ? LIMIT 1");
+    // $stmt->execute([$voucher['id']]);
+    // $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 🚫 If somehow not found, create user once
-    if (!$user) {
-        $stmt = $pdo->prepare("INSERT INTO users (username, password, role, voucher_id, status) VALUES (?,?,?,?,?)");
-        $stmt->execute([$voucher['username'], $voucher['password'], 'user', $voucher['id'], 'active']);
-        $user_id = $pdo->lastInsertId();
-    } else {
-        $user_id = $user['id'];
-    }
+    // // 🚫 If somehow not found, create user once
+    // if (!$user) {
+    //     $stmt = $pdo->prepare("INSERT INTO users (username, password, role, voucher_id, status) VALUES (?,?,?,?,?)");
+    //     $stmt->execute([$voucher['username'], $voucher['password'], 'user', $voucher['id'], 'active']);
+    //     $user_id = $pdo->lastInsertId();
+    // } else {
+    //     $user_id = $user['id'];
+    // }
 
-    // ---- RADCHECK ensure entry exists ----
-    $check = $pdo->prepare("SELECT id FROM radcheck WHERE username=? LIMIT 1");
-    $check->execute([$username]);
+    // // ---- RADCHECK ensure entry exists ----
+    // $check = $pdo->prepare("SELECT id FROM radcheck WHERE username=? LIMIT 1");
+    // $check->execute([$username]);
 
-    if (!$check->fetch()) {
-        $insert = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value)
-                                 VALUES (?, 'Cleartext-Password', ':=', ?)");
-        $insert->execute([$username, $password]);
-    }
+    // if (!$check->fetch()) {
+    //     $insert = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value)
+    //                              VALUES (?, 'Cleartext-Password', ':=', ?)");
+    //     $insert->execute([$username, $password]);
+    // }
 
-    // ---- Store session ----
-    $_SESSION['user_id'] = $user_id;
-    $_SESSION['role']    = 'user';
-    $_SESSION['voucher'] = $username;
+    // // ---- Store session ----
+    // $_SESSION['user_id'] = $user_id;
+    // $_SESSION['role']    = 'user';
+    // $_SESSION['voucher'] = $username;
 
-    log_action($pdo, $user_id, "Voucher Login", "User logged in using voucher", "success");
-    header("Location: /leokonnect/dashboard.php");
+    // log_action($pdo, $user_id, "Voucher Login", "User logged in using voucher", "success");
+    // header("Location: /leokonnect/dashboard.php");
+    // exit;
+// --- Voucher User Login ---
+$stmt = $pdo->prepare("SELECT * FROM vouchers WHERE username=? LIMIT 1");
+$stmt->execute([$username]);
+$voucher = $stmt->fetch();
+
+if (!$voucher) {
+    header("Location: ../login.php?invalid=1");
     exit;
+}
+
+// Check password
+if (!verify_password($password, $voucher['password'])) {
+    header("Location: ../login.php?error=1");
+    exit;
+}
+
+// 🚫 BLOCK LOGIN IF VOUCHER IS EXPIRED
+if (strtotime($voucher['expiry']) < time()) {
+    header("Location: ../login.php?expired=1");
+    exit;
+}
+
+// -----------------------------------------------------
+// FIND OR REUSE USER FOR THIS VOUCHER
+// -----------------------------------------------------
+
+// 1️⃣ Check if voucher already linked to a user
+$stmt = $pdo->prepare("SELECT * FROM users WHERE voucher_id = ? LIMIT 1");
+$stmt->execute([$voucher['id']]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if ($user) {
+    $user_id = $user['id'];
+
+} else {
+
+    // 2️⃣ Check by PHONE (MAIN — prevents duplicate phone error)
+    $checkPhone = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
+    $checkPhone->execute([$voucher['phone']]);
+    $userByPhone = $checkPhone->fetchColumn();
+
+    if ($userByPhone) {
+        // Reuse the user
+        $user_id = $userByPhone;
+
+        $link = $pdo->prepare("UPDATE users SET voucher_id=? WHERE id=?");
+        $link->execute([$voucher['id'], $user_id]);
+
+    } else {
+
+        // 3️⃣ Fallback: check by USERNAME
+        $checkUsername = $pdo->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
+        $checkUsername->execute([$voucher['username']]);
+        $userByUsername = $checkUsername->fetchColumn();
+
+        if ($userByUsername) {
+
+            $user_id = $userByUsername;
+
+            $link = $pdo->prepare("UPDATE users SET voucher_id=? WHERE id=?");
+            $link->execute([$voucher['id'], $user_id]);
+
+        } else {
+
+            // 4️⃣ Last option: create a brand-new user
+            $create = $pdo->prepare("
+                INSERT INTO users (name, username, password, phone, role, voucher_id, status)
+                VALUES (?, ?, ?, ?, 'user', ?, 'active')
+            ");
+            $create->execute([
+                $voucher['username'],
+                $voucher['username'],
+                $voucher['password'],
+                $voucher['phone'],
+                $voucher['id']
+            ]);
+
+            $user_id = $pdo->lastInsertId();
+        }
+    }
+}
+
+// -----------------------------------------------------
+// Ensure voucher is linked to user
+// -----------------------------------------------------
+$updateVoucher = $pdo->prepare("UPDATE vouchers SET user_id=? WHERE id=?");
+$updateVoucher->execute([$user_id, $voucher['id']]);
+
+// -----------------------------------------------------
+// Ensure radcheck entry exists
+// -----------------------------------------------------
+$check = $pdo->prepare("SELECT id FROM radcheck WHERE username=? LIMIT 1");
+$check->execute([$username]);
+
+if (!$check->fetch()) {
+    $insert = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value)
+                             VALUES (?, 'Cleartext-Password', ':=', ?)");
+    $insert->execute([$username, $password]);
+}
+
+// -----------------------------------------------------
+// Save session
+// -----------------------------------------------------
+$_SESSION['user_id'] = $user_id;
+$_SESSION['role']    = 'user';
+$_SESSION['voucher'] = $username;
+
+log_action($pdo, $user_id, "Voucher Login", "User logged in using voucher", "success");
+header("Location: /leokonnect/dashboard.php");
+exit;
+
+
+
 }
 
 // -------------------- LOGOUT --------------------
