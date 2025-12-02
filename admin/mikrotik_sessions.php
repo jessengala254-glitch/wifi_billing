@@ -187,11 +187,6 @@ $vouchers = $stmt4->fetchAll(PDO::FETCH_ASSOC);
 $total_vouchers = $pdo->query("SELECT FOUND_ROWS()")->fetchColumn();
 $totalPages_vouchers = ceil($total_vouchers / $perPage);
 
-// 7️⃣ Fetch NAS devices
-// $stmt5 = $pdo->prepare("SELECT nasname, shortname, type, secret FROM nas ORDER BY nasname ASC");
-// $stmt5->execute();
-// $nas_list = $stmt5->fetchAll(PDO::FETCH_ASSOC);
-
 // 8️⃣ Fetch expired users
 try {
     $now = date('Y-m-d H:i:s');
@@ -404,25 +399,6 @@ try {
             <?php echo renderPagination($page_vouchers, $totalPages_vouchers, 'page_vouchers'); ?>
         </div>
     </div>
-
-
-    <!-- NAS Devices -->
-    <!-- <h2>NAS Devices</h2>
-    <table>
-        <thead>
-            <tr><th>NAS Name</th><th>Short Name</th><th>Type</th><th>Secret</th></tr>
-        </thead>
-        <tbody>
-        <?php foreach($nas_list as $n): ?>
-        <tr>
-            <td><?= htmlspecialchars($n['nasname']) ?></td>
-            <td><?= htmlspecialchars($n['shortname']) ?></td>
-            <td><?= htmlspecialchars($n['type']) ?></td>
-            <td><?= htmlspecialchars($n['secret']) ?></td>
-        </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table> -->
 
 </div>
 

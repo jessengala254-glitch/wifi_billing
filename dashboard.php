@@ -114,7 +114,9 @@ $history = $historyQuery->fetchAll();
   <a href="plans.php">Plans</a>
   <a href="#">About</a>
   <a href="#">Contact</a>
-  <a href="../api/auth.php?action=logout" class="btn-primary">Logout</a>
+  <a href="/leokonnect/api/auth.php?action=logout" class="btn-primary">Logout</a>
+  
+  <!-- <a href="../api/auth.php?action=logout" class="btn-primary">Logout</a>  -->
 </div>
 
 <!-- Main Dashboard -->

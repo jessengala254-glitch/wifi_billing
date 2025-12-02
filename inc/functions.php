@@ -2,6 +2,9 @@
 // inc/functions.php
 $config = require __DIR__ . '/config.php';
 
+date_default_timezone_set("Africa/Nairobi");
+
+
 /**
  * ----------------------------------------
  * 1️⃣ Database Connection

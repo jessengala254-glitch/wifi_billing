@@ -329,8 +329,8 @@ if ($type === 'create_voucher') {
     $start_time = date('Y-m-d H:i:s');
     $expiry = date('Y-m-d H:i:s', strtotime("+$duration_minutes minutes"));
     $session_seconds = $duration_minutes * 60;
-    $radius_expire_format = date("d M Y Y H:i:s", strtotime($expiry));
-    //$radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
+    //$radius_expire_format = date("d M Y Y H:i:s", strtotime($expiry));
+    $radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
 
     // --- Insert voucher ---
     $stmt = $pdo->prepare("
