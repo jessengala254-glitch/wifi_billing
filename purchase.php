@@ -1,8 +1,5 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-require_once('inc/functions.php');
+require_once __DIR__ . '/inc/functions.php';
 session_start();
 
 if (!isset($_GET['plan_id'])) die('Plan required.');
@@ -13,52 +10,28 @@ $pdo->exec("SET time_zone = '+03:00'");
 
 $stmt = $pdo->prepare("SELECT * FROM plans WHERE id=? LIMIT 1");
 $stmt->execute([$plan_id]);
-$plan = $stmt->fetch();
+$plan = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$plan) die('Plan not found.');
-
-$user_id = $_SESSION['user_id'] ?? null;
 ?>
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Purchase Plan | Leo Konnect</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="assets/css/style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://kit.fontawesome.com/e097ce4e3c.js" crossorigin="anonymous"></script>
-
+<meta charset="utf-8">
+<title>Purchase Plan | Leo Konnect</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://kit.fontawesome.com/e097ce4e3c.js" crossorigin="anonymous"></script>
 </head>
 <body>
-<header class="navbar">
-  <div class="container nav-flex">
-      <a href="index.php" class="logo">
-        <i class="fas fa-wifi"></i> Leo <span>Konnect</span>
-      </a>
-
-    <nav>
-      <a href="plans.php">Plans</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
-    <div class="nav-btns">
-      <a href="login.php" class="signin">Sign In</a>
-      <a href="register.php" class="btn-primary">Get Started</a>
-    </div>
-  </div>
-</header>
-    
 <div class="purchase-container">
-  <a href="../index.php" class="logo">Leo Konnect</a>
-
   <h2><?= htmlspecialchars($plan['title']) ?></h2>
   <p class="plan-price">Ksh <?= number_format($plan['price'], 2) ?></p>
 
-  <form id="payForm" method="POST" action="../leokonnect/api/payments.php">
+  <form id="payForm">
     <input type="hidden" name="action" value="initiate">
     <input type="hidden" name="plan_id" value="<?= $plan['id'] ?>">
 
-    <label>Phone Number (used for M-Pesa)</label>
+    <label>Phone Number (M-Pesa)</label>
     <input name="phone" required placeholder="07xxxxxxxx">
 
     <label>IP Address (optional)</label>
@@ -70,56 +43,56 @@ $user_id = $_SESSION['user_id'] ?? null;
     <button type="submit">Pay Ksh <?= number_format($plan['price'], 2) ?></button>
   </form>
 
+  <div id="status" style="margin-top:20px;"></div>
+  <div id="voucher" style="margin-top:20px; font-weight:bold; white-space: pre-line;"></div>
 </div>
-    
-<footer class="site-footer">
-  <div class="footer-container">
-    
-    <div class="footer-column brand"> 
-          <h2 class="footer-logo">
-              <i class="fas fa-wifi"></i> Leo <span>Konnect</span></h2>
-      <p>Making internet accessible and affordable for everyone in Kenya.</p>
-      <div class="social-icons">
-        <a href="#"><i class="fab fa-facebook-f"></i></a>
-        <a href="#"><i class="fab fa-x-twitter"></i></a>
-        <a href="#"><i class="fab fa-instagram"></i></a>
-      </div>
-    </div>
 
-    <div class="footer-column">
-      <h3>Quick Links</h3>
-      <ul>
-        <li><a href="#">View Plans</a></li>
-        <li><a href="#">About Us</a></li>
-        <li><a href="#">Contact</a></li>
-        <li><a href="#">Sign In</a></li>
-      </ul>
-    </div>
+<script>
+const payForm = document.getElementById('payForm');
+const statusDiv = document.getElementById('status');
+const voucherDiv = document.getElementById('voucher');
 
-    <div class="footer-column">
-      <h3>Support</h3>
-      <ul>
-        <li><a href="#">FAQ</a></li>
-        <li><a href="#">Help Center</a></li>
-        <li><a href="#">Terms of Service</a></li>
-        <li><a href="#">Privacy Policy</a></li>
-      </ul>
-    </div>
+payForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    statusDiv.innerText = "Initializing payment...";
+    voucherDiv.innerText = "";
 
-    <div class="footer-column contact">
-      <h3>Contact Us</h3>
-      <ul>
-        <li><i class="fas fa-map-marker-alt"></i> Malindi, Kenya</li>
-        <li><i class="fas fa-phone"></i> +254 700 000 000</li>
-        <li><i class="fas fa-envelope"></i> info@leokonnect.co.ke</li>
-      </ul>
-    </div>
+    try {
+        const formData = new FormData(payForm);
+        const res = await fetch('../leokonnect/api/payments.php', { method: 'POST', body: formData });
+        const data = await res.json();
 
-  </div>
+        if (!data || !data.payment_id || !data.authorization_url) {
+            statusDiv.innerText = "Could not start payment. Try again.";
+            return;
+        }
 
-  <div class="footer-bottom">
-    <p>&copy; <?= date('Y') ?> Leo Konnect. All rights reserved.</p>
-  </div>
-</footer>
+        // Open IntaSend payment page in new tab
+        window.open(data.authorization_url, '_blank');
+        statusDiv.innerText = "Payment page opened. Waiting for confirmation...";
+
+        const paymentId = data.payment_id;
+
+        // Poll for payment confirmation
+        const poll = setInterval(async () => {
+            const checkRes = await fetch(`../leokonnect/api/check_payment.php?payment_id=${paymentId}`);
+            const checkData = await checkRes.json();
+
+            if (checkData.status === 'success') {
+                clearInterval(poll);
+                statusDiv.innerText = "Payment successful!";
+                voucherDiv.innerText = `Username: ${checkData.username}\nPassword: ${checkData.password}\nValid until: ${checkData.expires}`;
+            } else if (checkData.status === 'failed') {
+                clearInterval(poll);
+                statusDiv.innerText = "Payment failed: " + (checkData.desc || 'Declined');
+            } else {
+                statusDiv.innerText = "Waiting for payment confirmation...";
+            }
+        }, 5000);
+    } catch (err) {
+        statusDiv.innerText = "Payment error: " + err.message;
+    }
+});
+</script>
 </body>
 </html>

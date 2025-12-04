@@ -397,9 +397,6 @@ if ($type === 'create_voucher') {
     $updUserVoucher = $pdo->prepare("UPDATE users SET voucher_id = ? WHERE id = ?");
     $updUserVoucher->execute([$voucher_id, $user_id]);
 
-
-
-
     // --- Insert FreeRADIUS records ---
     // 1. Cleartext Password
     $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Cleartext-Password', ':=', ?)")
@@ -679,36 +676,106 @@ if ($type === 'authorize') {
 
 // -------------------- 3) ACCOUNTING --------------------
 if ($type === 'accounting') {
-    $stmt = $pdo->prepare("INSERT INTO radacct (username, acctstarttime, acctstoptime, acctsessionid, acctuniqueid, acctinputoctets, acctoutputoctets, nasipaddress, acctterminatecause) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    try {
-        $stmt->execute([
-            $username,
-            $payload['acctstarttime'] ?? date('Y-m-d H:i:s'),
-            $payload['acctstoptime'] ?? null,
-            $payload['acctsessionid'] ?? uniqid('s', true),
-            $payload['acctuniqueid'] ?? uniqid('u', true),
-            $payload['acctinputoctets'] ?? 0,
-            $payload['acctoutputoctets'] ?? 0,
-            $nas_ip ?? '0.0.0.0',
-            $payload['acctterminatecause'] ?? 'Unknown'
-        ]);
-        // if acctstoptime present, optionally expire voucher if needed
-        if (!empty($payload['acctstoptime'])) {
-            $check = $pdo->prepare("SELECT id, expiry FROM vouchers WHERE username = ? LIMIT 1");
-            $check->execute([$username]);
-            $v = $check->fetch(PDO::FETCH_ASSOC);
-            if ($v && !empty($v['expiry']) && strtotime($v['expiry']) < time()) {
-                $pdo->prepare("UPDATE vouchers SET status='expired' WHERE id = ?")->execute([$v['id']]);
-                $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'accounting', 'info', ?)")->execute([$username, 'voucher_expired_on_stop']);
+    function extract_mac($payload) {
+        $fields = [
+            'MAC-Address',          'mac-address',       // MikroTik sends this
+            'Calling-Station-Id',   'callingstationid',
+            'calling_station_id',   'Calling_Station_Id',
+            'Mikrotik-Host-MAC',    'mikrotik-host-mac',
+            'mac',                  'mac_address'
+        ];
+
+        foreach ($fields as $f) {
+            if (!empty($payload[$f])) {
+                $raw = preg_replace('/[^A-Fa-f0-9-:]/', '', $payload[$f]);
+                if (preg_match('/^[A-Fa-f0-9]{2}([-:][A-Fa-f0-9]{2}){5}$/', $raw)) {
+                    // Normalize to colon format and uppercase
+                    $normalized = str_replace('-', ':', strtoupper($raw));
+                    return $normalized;
+                }
             }
         }
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'accounting', 'ok', ?)")->execute([$username, 'accounting_inserted']);
+        return "UNKNOWN";
+    }
+
+    $acctsessionid = $payload['Acct-Session-Id'] ?? $payload['acctsessionid'] ?? null;
+    $acctuniqueid  = $payload['Acct-Unique-Id'] ?? $payload['acctuniqueid'] ?? null;
+    $nas_ip        = $payload['NAS-IP-Address'] ?? $payload['nasipaddress'] ?? '0.0.0.0';
+    $framed_ip     = $payload['Framed-IP-Address'] ?? $payload['framedipaddress'] ?? null;
+    $username      = $payload['username'] ?? '';
+
+    if (!$username) {
+        respond(['error' => 'username is required'], 400);
+    }
+
+    $mac_address = extract_mac($payload);
+
+    // Fetch existing session
+    $stmt = $pdo->prepare("SELECT radacctid, callingstationid, acctinputoctets, acctoutputoctets, acctstoptime 
+                           FROM radacct 
+                           WHERE acctsessionid = ? OR acctuniqueid = ? LIMIT 1");
+    $stmt->execute([$acctsessionid, $acctuniqueid]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    try {
+        $input_oct  = $payload['Acct-Input-Octets']  ?? $payload['acctinputoctets']  ?? 0;
+        $output_oct = $payload['Acct-Output-Octets'] ?? $payload['acctoutputoctets'] ?? 0;
+        $stop_time  = $payload['acctstoptime'] ?? null;
+        $terminate  = $payload['acctterminatecause'] ?? ($stop_time ? 'User-Request' : 'Unknown');
+
+        if ($existing) {
+            // Update existing session, ensure MAC is always written
+            $stmt = $pdo->prepare("UPDATE radacct SET 
+                acctinputoctets = ?, 
+                acctoutputoctets = ?, 
+                acctstoptime = ?, 
+                acctterminatecause = ?, 
+                nasipaddress = ?, 
+                framedipaddress = ?, 
+                callingstationid = ?, 
+                acctupdatetime = NOW()
+            WHERE radacctid = ?");
+            $stmt->execute([
+                $input_oct,
+                $output_oct,
+                $stop_time ?? $existing['acctstoptime'],
+                $terminate,
+                $nas_ip,
+                $framed_ip,
+                $mac_address !== "UNKNOWN" ? $mac_address : ($existing['callingstationid'] ?? 'UNKNOWN'),
+                $existing['radacctid']
+            ]);
+        } else {
+            // Insert new session
+            $stmt = $pdo->prepare("INSERT INTO radacct 
+                (username, acctsessionid, acctuniqueid, acctstarttime, acctstoptime, acctinputoctets, acctoutputoctets, nasipaddress, framedipaddress, callingstationid, acctterminatecause, acctupdatetime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->execute([
+                $username,
+                $acctsessionid ?? uniqid('s', true),
+                $acctuniqueid ?? uniqid('u', true),
+                $payload['acctstarttime'] ?? date('Y-m-d H:i:s'),
+                $stop_time,
+                $input_oct,
+                $output_oct,
+                $nas_ip,
+                $framed_ip,
+                $mac_address,
+                $terminate
+            ]);
+        }
+
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) 
+                       VALUES (?, 'accounting', 'ok', ?)")->execute([$username, 'accounting_processed']);
+
         respond(['result' => 'ok']);
     } catch (Exception $e) {
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'accounting', 'error', ?)")->execute([$username, $e->getMessage()]);
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) 
+                       VALUES (?, 'accounting', 'error', ?)")->execute([$username, $e->getMessage()]);
         respond(['result' => 'error', 'message' => $e->getMessage()], 500);
     }
 }
+
 
 // -------------------- 4) DISCONNECT --------------------
 if ($type === 'disconnect') {

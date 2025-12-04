@@ -88,37 +88,19 @@ try {
 $totalPages_active = ceil($total_active / $perPage);
 
 // 4️⃣ Fetch last radacct sessions
-// $stmt = $pdo->prepare("
-//     SELECT SQL_CALC_FOUND_ROWS username, acctstarttime, acctstoptime, framedipaddress, callingstationid,
-//            ROUND(acctinputoctets / (1024*1024*1024), 4) AS input_gb,
-//            ROUND(acctoutputoctets / (1024*1024*1024), 4) AS output_gb,
-//            ROUND((acctinputoctets + acctoutputoctets) / (1024*1024*1024), 4) AS total_gb,
-//            acctterminatecause
-//     FROM radacct
-//     ORDER BY acctstarttime DESC
-//     LIMIT :limit OFFSET :offset
-// ");
-// $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
-// $stmt->bindValue(':offset', $offset_rad, PDO::PARAM_INT);
-// $stmt->execute();
-// $rad_sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-// $total_rad = $pdo->query("SELECT FOUND_ROWS()")->fetchColumn();
-// $totalPages_rad = ceil($total_rad / $perPage);
-
-// 4️⃣ Fetch ONLY active radacct sessions (currently online)
 $stmt = $pdo->prepare("
     SELECT SQL_CALC_FOUND_ROWS 
            username, 
            acctstarttime, 
            acctstoptime, 
            framedipaddress, 
-           callingstationid,
+           callingstationid AS mac_address,
            ROUND(acctinputoctets / (1024*1024*1024), 4) AS input_gb,
            ROUND(acctoutputoctets / (1024*1024*1024), 4) AS output_gb,
            ROUND((acctinputoctets + acctoutputoctets) / (1024*1024*1024), 4) AS total_gb,
            acctterminatecause
     FROM radacct
-    WHERE acctstoptime IS NULL       -- ⭐ Only active connections
+    WHERE acctstoptime IS NULL 
     ORDER BY acctstarttime DESC
     LIMIT :limit OFFSET :offset
 ");
