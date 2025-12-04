@@ -6,6 +6,10 @@ require_once('inc/functions.php');
 
 $pdo = db();
 $plans = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY price ASC")->fetchAll();
+
+// Capture captive portal parameters if present
+$return_url = $_GET['return_url'] ?? 'http://www.google.com';
+$from_captive = isset($_GET['from_captive']) ? 1 : 0;
 ?>
 <!doctype html>
 <html lang="en">
@@ -103,7 +107,7 @@ $plans = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY price ASC")->f
         <li>Multiple device support</li>
       </ul>
       
-      <a href="purchase.php?plan_id=<?= $p['id'] ?>" class="btn-primary">Choose Plan</a>
+      <a href="purchase.php?plan_id=<?= $p['id'] ?><?= $from_captive ? '&from_captive=1&return_url=' . urlencode($return_url) : '' ?>" class="btn-primary">Choose Plan</a>
     </div>
     <?php endforeach; ?>
   </div>

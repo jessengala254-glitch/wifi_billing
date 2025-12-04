@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Leo Konnect - Hotspot Login</title>
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="expires" content="-1" />  
+<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
+<script>
+// Only redirect if this is truly the first visit (no form data submitted)
+// Check if the page was accessed via POST (form submission) or GET with error
+var isFormSubmission = window.location.search.indexOf('error') > -1 || 
+                       document.referrer.indexOf('login') > -1;
+
+if (!isFormSubmission) {
+    // Add a small delay to allow MikroTik variables to be processed
+    setTimeout(function() {
+        var usernameField = document.querySelector('input[name="username"]');
+        if (usernameField && (!usernameField.value || usernameField.value === '')) {
+            // No username yet, redirect to plan selection
+            window.location.href = 'http://192.168.10.68/leokonnect/index.php?from_captive=1&return_url=$(link-orig)';
+        }
+    }, 500);
+}
+</script>
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', 'Arial', sans-serif;
+    background: linear-gradient(135deg, #006837, #00c853);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-container {
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+}
+.logo {
+    text-align: center;
+    font-size: 32px;
+    color: #28a745;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+h2 {
+    text-align: center;
+    color: #28a745;
+    margin-bottom: 30px;
+    font-size: 24px;
+}
+input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+input[type="text"]:focus, input[type="password"]:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
+    outline: none;
+}
+input[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background: #28a745;
+    color: white;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+    font-weight: bold;
+    transition: background 0.3s ease;
+}
+input[type="submit"]:hover {
+    background: white;
+    color: #28a745;
+    border-color: #28a745;
+}
+.error {
+    color: #e74c3c;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 14px;
+}
+.buy-link {
+    text-align: center;
+    margin-top: 20px;
+    color: #666;
+    font-size: 14px;
+}
+.buy-link a {
+    color: #28a745;
+    text-decoration: none;
+    font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<!-- MikroTik CHAP Support -->
+$(if chap-id)
+    <form name="sendin" action="$(link-login-only)" method="post" style="display:none;">
+        <input type="hidden" name="username" />
+        <input type="hidden" name="password" />
+        <input type="hidden" name="dst" value="$(link-orig)" />
+        <input type="hidden" name="popup" value="true" />
+    </form>
+    
+    <script type="text/javascript" src="/md5.js"></script>
+    <script type="text/javascript">
+    function doLogin() {
+        document.sendin.username.value = document.login.username.value;
+        document.sendin.password.value = hexMD5('$(chap-id)' + document.login.password.value + '$(chap-challenge)');
+        document.sendin.submit();
+        return false;
+    }
+    </script>
+$(endif)
+
+<div class="login-container">
+    <div class="logo">🌐 Leo Konnect</div>
+    <h2>WiFi Login</h2>
+    
+    <form name="login" action="$(link-login-only)" method="post"
+        $(if chap-id) onSubmit="return doLogin()" $(endif)>
+        <input type="hidden" name="dst" value="$(link-orig)" />
+        <input type="hidden" name="popup" value="true" />
+        
+        <input autocomplete="on" name="username" placeholder="Voucher Username" 
+               type="text" value="$(username)" required />
+        
+        <input autocomplete="off" name="password" placeholder="Voucher Password" 
+               type="password" required />
+        
+        <input name="submit" type="submit" value="Connect to WiFi" />
+    </form>
+    
+    $(if error)
+    <div class="error">$(error)</div>
+    $(endif)
+    
+    <div class="buy-link">
+        Don't have a voucher? <a href="http://192.168.10.68/leokonnect/index.php?from_captive=1" target="_blank">Buy Now</a>
+    </div>
+</div>
+
+<script type="text/javascript">
+    document.login.username.focus();
+</script>
+
+</body>
+</html>

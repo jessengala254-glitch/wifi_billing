@@ -12,6 +12,10 @@ $stmt = $pdo->prepare("SELECT * FROM plans WHERE id=? LIMIT 1");
 $stmt->execute([$plan_id]);
 $plan = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$plan) die('Plan not found.');
+
+// Get return URL (for captive portal redirect after payment)
+$return_url = $_GET['return_url'] ?? 'http://www.google.com';
+$from_captive = $_GET['from_captive'] ?? false;
 ?>
 <!doctype html>
 <html lang="en">
@@ -30,6 +34,8 @@ if (!$plan) die('Plan not found.');
   <form id="payForm">
     <input type="hidden" name="action" value="initiate">
     <input type="hidden" name="plan_id" value="<?= $plan['id'] ?>">
+    <input type="hidden" name="return_url" value="<?= htmlspecialchars($return_url) ?>">
+    <input type="hidden" id="from_captive" value="<?= $from_captive ? '1' : '0' ?>">
 
     <label>Phone Number (M-Pesa)</label>
     <input name="phone" required placeholder="07xxxxxxxx">
@@ -51,6 +57,7 @@ if (!$plan) die('Plan not found.');
 const payForm = document.getElementById('payForm');
 const statusDiv = document.getElementById('status');
 const voucherDiv = document.getElementById('voucher');
+const fromCaptive = document.getElementById('from_captive').value === '1';
 
 payForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -72,6 +79,7 @@ payForm.addEventListener('submit', async (e) => {
         statusDiv.innerText = "Payment page opened. Waiting for confirmation...";
 
         const paymentId = data.payment_id;
+        const returnUrl = new URLSearchParams(formData).get('return_url');
 
         // Poll for payment confirmation
         const poll = setInterval(async () => {
@@ -80,17 +88,25 @@ payForm.addEventListener('submit', async (e) => {
 
             if (checkData.status === 'success') {
                 clearInterval(poll);
-                statusDiv.innerText = "Payment successful!";
-                voucherDiv.innerText = `Username: ${checkData.username}\nPassword: ${checkData.password}\nValid until: ${checkData.expires}`;
+                statusDiv.innerText = "✅ Payment successful!";
+                voucherDiv.innerText = `Username: ${checkData.username}\nPassword: ${checkData.password}\nValid until: ${checkData.expires}\n\n📱 Use these credentials to login to the WiFi network.`;
+                
+                // If coming from captive portal, redirect after 3 seconds
+                if (fromCaptive) {
+                    setTimeout(() => {
+                        // Redirect to return URL or try to open WiFi login
+                        window.location.href = returnUrl || 'http://www.google.com';
+                    }, 3000);
+                }
             } else if (checkData.status === 'failed') {
                 clearInterval(poll);
-                statusDiv.innerText = "Payment failed: " + (checkData.desc || 'Declined');
+                statusDiv.innerText = "❌ Payment failed: " + (checkData.desc || 'Declined');
             } else {
-                statusDiv.innerText = "Waiting for payment confirmation...";
+                statusDiv.innerText = "⏳ Waiting for payment confirmation...";
             }
         }, 5000);
     } catch (err) {
-        statusDiv.innerText = "Payment error: " + err.message;
+        statusDiv.innerText = "❌ Payment error: " + err.message;
     }
 });
 </script>
