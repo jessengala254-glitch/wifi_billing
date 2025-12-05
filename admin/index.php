@@ -38,6 +38,41 @@ if ($hour >= 5 && $hour < 12) {
     $greeting = 'Hello';
 }
 
+// Define items per page
+$perPage = 20;
+
+// Pagination helper function
+function renderPagination($currentPage, $totalPages, $paramName='page') {
+    $html = '';
+    $maxLinks = 5; 
+    $start = max(1, $currentPage - floor($maxLinks / 2));
+    $end = min($totalPages, $start + $maxLinks - 1);
+    $start = max(1, $end - $maxLinks + 1); // adjust start if near end
+
+    // preserve existing GET params
+    $queryParams = $_GET;
+    unset($queryParams[$paramName]); 
+
+    $baseUrl = '?' . http_build_query($queryParams);
+
+    if ($currentPage > 1) {
+        $prevPage = $currentPage - 1;
+        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $prevPage . '">&laquo; Prev</a>';
+    }
+
+    for ($i = $start; $i <= $end; $i++) {
+        $active = $i == $currentPage ? 'active' : '';
+        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $i . '" class="' . $active . '">' . $i . '</a>';
+    }
+
+    if ($currentPage < $totalPages) {
+        $nextPage = $currentPage + 1;
+        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $nextPage . '">Next &raquo;</a>';
+    }
+
+    return $html;
+}
+
 try {
     // Total users
     $totalUsers = $pdo->query("SELECT COUNT(*) AS total FROM users WHERE voucher_id IS NOT NULL")->fetch()['total'] ?? 0;
@@ -65,13 +100,26 @@ try {
         WHERE status = 'active'
     ")->fetch()['total'] ?? 0;
 
-    // Data usage (last 7 days)
+    // Data usage with dynamic period
+    $dataUsagePeriod = $_GET['data_period'] ?? '7day';
+    $dataPeriodMap = [
+        '7day' => ['interval' => '7 DAY', 'label' => 'Last 7 Days'],
+        '14day' => ['interval' => '14 DAY', 'label' => 'Last 14 Days'],
+        '1month' => ['interval' => '1 MONTH', 'label' => 'Last Month'],
+        '3month' => ['interval' => '3 MONTH', 'label' => 'Last 3 Months'],
+        '6month' => ['interval' => '6 MONTH', 'label' => 'Last 6 Months']
+    ];
+    if (!isset($dataPeriodMap[$dataUsagePeriod])) {
+        $dataUsagePeriod = '7day';
+    }
+    $dataPeriodConfig = $dataPeriodMap[$dataUsagePeriod];
+    
     $dataUsage = $pdo->query("
         SELECT 
             DATE(acctstarttime) AS date,
             ROUND(SUM(acctinputoctets + acctoutputoctets)/(1024*1024),2) AS data_usage
         FROM radacct
-        WHERE acctstarttime >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        WHERE acctstarttime >= DATE_SUB(CURDATE(), INTERVAL {$dataPeriodConfig['interval']})
         GROUP BY DATE(acctstarttime)
         ORDER BY DATE(acctstarttime)
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -88,20 +136,54 @@ try {
     $planLabels = array_column($activeByPlan, 'plan_type');
     $planValues = array_column($activeByPlan, 'total');
 
-    // Customer retention (6 months)
-    $retention = $pdo->query("
-        SELECT DATE_FORMAT(MIN(created_at), '%b %Y') AS month, COUNT(*) AS new_users
+    // Customer retention - get period from GET parameter (default 6 months)
+    $retentionPeriod = $_GET['retention_period'] ?? '6month';
+    
+    // Map periods to SQL intervals
+    $periodMap = [
+        '1week' => ['interval' => '1 WEEK', 'label' => '1 Week', 'format' => '%Y-%m-%d'],
+        '14day' => ['interval' => '14 DAY', 'label' => '14 Days', 'format' => '%Y-%m-%d'],
+        '1month' => ['interval' => '1 MONTH', 'label' => '1 Month', 'format' => '%b %Y'],
+        '3month' => ['interval' => '3 MONTH', 'label' => '3 Months', 'format' => '%b %Y'],
+        '6month' => ['interval' => '6 MONTH', 'label' => '6 Months', 'format' => '%b %Y'],
+        '1year' => ['interval' => '1 YEAR', 'label' => '1 Year', 'format' => '%b %Y']
+    ];
+    
+    // Validate and get period config
+    if (!isset($periodMap[$retentionPeriod])) {
+        $retentionPeriod = '6month';
+    }
+    $periodConfig = $periodMap[$retentionPeriod];
+    
+    // Customer retention query with dynamic period
+    $retention = $pdo->prepare("
+        SELECT DATE_FORMAT(MIN(created_at), ?) AS month, COUNT(*) AS new_users
         FROM users
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL {$periodConfig['interval']})
         GROUP BY YEAR(created_at), MONTH(created_at)
         ORDER BY YEAR(MIN(created_at)), MONTH(MIN(created_at))
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $retention->execute([$periodConfig['format']]);
+    $retention = $retention->fetchAll(PDO::FETCH_ASSOC);
 
-    // Daily registrations (last 7 days)
+    // User registrations with dynamic period
+    $userRegPeriod = $_GET['user_reg_period'] ?? '7day';
+    $userRegPeriodMap = [
+        '7day' => ['interval' => '7 DAY', 'label' => 'Last 7 Days'],
+        '14day' => ['interval' => '14 DAY', 'label' => 'Last 14 Days'],
+        '1month' => ['interval' => '1 MONTH', 'label' => 'Last Month'],
+        '3month' => ['interval' => '3 MONTH', 'label' => 'Last 3 Months'],
+        '6month' => ['interval' => '6 MONTH', 'label' => 'Last 6 Months']
+    ];
+    if (!isset($userRegPeriodMap[$userRegPeriod])) {
+        $userRegPeriod = '7day';
+    }
+    $userRegPeriodConfig = $userRegPeriodMap[$userRegPeriod];
+    
     $userRegs = $pdo->query("
         SELECT DATE(created_at) AS date, COUNT(*) AS count
         FROM users
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL {$userRegPeriodConfig['interval']})
         GROUP BY DATE(created_at)
         ORDER BY DATE(created_at)
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -139,6 +221,60 @@ try {
         echo "Database error: " . $e->getMessage();
     }
 
+    // Data Usage Per User with pagination and search
+    $page_data_usage = max(1, (int)($_GET['page_data'] ?? 1));
+    $offset_data_usage = ($page_data_usage - 1) * $perPage;
+    $search_phone = $_GET['search_phone'] ?? '';
+    
+    try {
+        // Build WHERE clause
+        $whereClause = "v.status = 'active'";
+        $params = [];
+        
+        if (!empty($search_phone)) {
+            $whereClause .= " AND u.phone LIKE ?";
+            $params[] = "%{$search_phone}%";
+        }
+        
+        // Count total records
+        $countQuery = "
+            SELECT COUNT(DISTINCT v.username)
+            FROM vouchers v
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE {$whereClause}
+        ";
+        $countStmt = $pdo->prepare($countQuery);
+        $countStmt->execute($params);
+        $total_data_users = $countStmt->fetchColumn();
+        $totalPages_data_usage = ceil($total_data_users / $perPage);
+        
+        // Fetch paginated data
+        $dataQuery = "
+            SELECT 
+                v.username,
+                u.phone,
+                v.plan_type,
+                ROUND(SUM(r.acctinputoctets)/(1024*1024*1024), 3) AS input_gb,
+                ROUND(SUM(r.acctoutputoctets)/(1024*1024*1024), 3) AS output_gb,
+                ROUND(SUM(r.acctinputoctets + r.acctoutputoctets)/(1024*1024*1024), 3) AS total_gb,
+                v.status,
+                v.created_at
+            FROM vouchers v
+            LEFT JOIN users u ON v.user_id = u.id
+            LEFT JOIN radacct r ON r.username = v.username
+            WHERE {$whereClause}
+            GROUP BY v.username, u.phone, v.plan_type, v.status, v.created_at
+            ORDER BY total_gb DESC
+            LIMIT {$perPage} OFFSET {$offset_data_usage}
+        ";
+        $dataStmt = $pdo->prepare($dataQuery);
+        $dataStmt->execute($params);
+        $dataPerUser = $dataStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        $dataPerUser = [];
+        echo "Database error: " . $e->getMessage();
+    }
+
     
 
 } catch (PDOException $e) {
@@ -155,6 +291,14 @@ try {
 <link rel="stylesheet" href="admin_style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+    .router-dashboard { 
+        max-width:1200px; 
+        margin:auto; 
+        background:#fff; 
+        border-radius:10px; 
+        padding:20px; 
+        box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    }
   .perf-table {
     width: 100%;
     border-collapse: collapse;
@@ -178,6 +322,118 @@ try {
 
 .perf-table tr:hover {
     background: #f2f2f2;
+}
+
+.chart-description {
+    font-size: 15px;
+    color: #666;
+    margin: -5px 0 15px 0;
+}
+
+.retention-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.retention-header h3 {
+    margin: 0;
+}
+
+.retention-select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    width: 110px;
+}
+
+.username-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #e8f5e9;
+    color: #006837;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.status-active {
+    background: #e8f5e9;
+    color: green;
+}
+
+.status-expired {
+    background: #ffebee;
+    color: red;
+}
+
+.search-box {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-box input {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    width: 250px;
+}
+
+.search-box button {
+    padding: 8px 16px;
+    background: #006837;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.search-box button:hover {
+    background: #005028;
+}
+
+.search-box .clear-btn {
+    background: #666;
+}
+
+.search-box .clear-btn:hover {
+    background: #444;
+}
+
+.data-usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 40px;
+    margin-bottom: 10px;
+}
+
+.data-usage-header h2 {
+    margin: 0;
+}
+
+.data-usage-header form input[type="text"] {
+    width: 300px;
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 14px;
 }
 
 </style>
@@ -211,54 +467,148 @@ try {
   <div class="charts-container">
     <div class="chart-card">
       <h3>Active Vouchers by Plan</h3>
+      <p class="chart-description">Distribution of active users across different plan types</p>
       <canvas id="planChart"></canvas>
     </div>
 
     <div class="chart-card">
-      <h3>Customer Retention (6 Months)</h3>
+      <div class="retention-header">
+        <h3>Customer Retention</h3>
+        <select id="retentionPeriodSelect" onchange="changeRetentionPeriod(this.value)" class="retention-select">
+          <option value="1week" <?= $retentionPeriod === '1week' ? 'selected' : '' ?>>1 Week</option>
+          <option value="14day" <?= $retentionPeriod === '14day' ? 'selected' : '' ?>>14 Days</option>
+          <option value="1month" <?= $retentionPeriod === '1month' ? 'selected' : '' ?>>1 Month</option>
+          <option value="3month" <?= $retentionPeriod === '3month' ? 'selected' : '' ?>>3 Months</option>
+          <option value="6month" <?= $retentionPeriod === '6month' ? 'selected' : '' ?>>6 Months</option>
+          <option value="1year" <?= $retentionPeriod === '1year' ? 'selected' : '' ?>>1 Year</option>
+        </select>
+      </div>
+      <p class="chart-description">Track new user registrations over the selected period</p>
       <canvas id="retentionChart"></canvas>
     </div>
 
     <div class="chart-card">
-      <h3>Data Usage (Last 7 Days)</h3>
+      <div class="retention-header">
+        <h3>Data Usage</h3>
+        <select id="dataPeriodSelect" onchange="window.location.href='?data_period=' + this.value + '<?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['user_reg_period']) ? '&user_reg_period=' . htmlspecialchars($_GET['user_reg_period']) : '' ?>'; " class="retention-select">
+          <option value="7day" <?= $dataUsagePeriod === '7day' ? 'selected' : '' ?>>Last 7 Days</option>
+          <option value="14day" <?= $dataUsagePeriod === '14day' ? 'selected' : '' ?>>Last 14 Days</option>
+          <option value="1month" <?= $dataUsagePeriod === '1month' ? 'selected' : '' ?>>Last Month</option>
+          <option value="3month" <?= $dataUsagePeriod === '3month' ? 'selected' : '' ?>>Last 3 Months</option>
+          <option value="6month" <?= $dataUsagePeriod === '6month' ? 'selected' : '' ?>>Last 6 Months</option>
+        </select>
+      </div>
+      <p class="chart-description">Total data consumption by all users over the selected period</p>
       <canvas id="dataUsageChart"></canvas>
     </div>
 
     <div class="chart-card">
-      <h3>User Registrations (Last 7 Days)</h3>
+      <div class="retention-header">
+        <h3>User Registrations</h3>
+        <select id="userRegPeriodSelect" onchange="window.location.href='?user_reg_period=' + this.value + '<?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['data_period']) ? '&data_period=' . htmlspecialchars($_GET['data_period']) : '' ?>';" class="retention-select">
+          <option value="7day" <?= $userRegPeriod === '7day' ? 'selected' : '' ?>>Last 7 Days</option>
+          <option value="14day" <?= $userRegPeriod === '14day' ? 'selected' : '' ?>>Last 14 Days</option>
+          <option value="1month" <?= $userRegPeriod === '1month' ? 'selected' : '' ?>>Last Month</option>
+          <option value="3month" <?= $userRegPeriod === '3month' ? 'selected' : '' ?>>Last 3 Months</option>
+          <option value="6month" <?= $userRegPeriod === '6month' ? 'selected' : '' ?>>Last 6 Months</option>
+        </select>
+      </div>
+      <p class="chart-description">Daily count of new user sign-ups over the selected period</p>
       <canvas id="userRegChart"></canvas>
     </div>
 
   </div>
 
-  <h2 style="margin-top:40px;">Package Performance Comparison</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Package</th>
-                <th>Price (Ksh)</th>
-                <th>Users This Month</th>
-                <th>Monthly Revenue (Ksh)</th>
-                <th>Avg Data Usage (GB)</th>
-                <th>ARPU (Ksh)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($packagePerformance as $pkg): ?>
-            <tr>
-                <td><?= htmlspecialchars($pkg['name']) ?></td>
-                <td><?= number_format((float)$pkg['price'],2) ?></td>
-                <td><?= $pkg['total_users'] ?></td>
-                <td><?= number_format($pkg['monthly_revenue'],2) ?></td>
-                <td><?= number_format($pkg['avg_usage_gb'],2) ?></td>
-                <td><?= number_format($pkg['arpu'],2) ?></td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+  <div class="router-dashboard">
+    <h2 style="margin-top:20px;">Package Performance Comparison</h2>
+        <p class="chart-description">Detailed analysis of each plan's performance including user count, revenue, and data usage metrics</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Package</th>
+                    <th>Price (Ksh)</th>
+                    <th>Users This Month</th>
+                    <th>Monthly Revenue (Ksh)</th>
+                    <th>Avg Data Usage (GB)</th>
+                    <th>ARPU (Ksh)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($packagePerformance as $pkg): ?>
+                <tr>
+                    <td><?= htmlspecialchars($pkg['name']) ?></td>
+                    <td><?= number_format((float)$pkg['price'],2) ?></td>
+                    <td><?= $pkg['total_users'] ?></td>
+                    <td><?= number_format($pkg['monthly_revenue'],2) ?></td>
+                    <td><?= number_format($pkg['avg_usage_gb'],2) ?></td>
+                    <td><?= number_format($pkg['arpu'],2) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="router-dashboard" style="margin-top:20px;">
+        <div class="data-usage-header">
+            <h2>Data Usage Per User</h2>
+            <form method="GET" action="">
+                <input type="text" name="search_phone" placeholder="Search by phone number..." value="<?= htmlspecialchars($search_phone) ?>" />
+                <!-- Preserve other GET parameters -->
+                <?php foreach ($_GET as $key => $value): ?>
+                    <?php if ($key !== 'search_phone' && $key !== 'page_data'): ?>
+                        <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>" />
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </form>
+        </div>
+        <p class="chart-description">Individual data consumption breakdown for active users</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Phone</th>
+                    <th>Plan Type</th>
+                    <th>Upload (GB)</th>
+                    <th>Download (GB)</th>
+                    <th>Total Usage (GB)</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if(!empty($dataPerUser)): ?>
+                    <?php foreach ($dataPerUser as $user): ?>
+                    <tr>
+                        <td><span class="username-badge"><?= htmlspecialchars($user['username']) ?></span></td>
+                        <td><?= htmlspecialchars($user['phone'] ?? 'N/A') ?></td>
+                        <td><?= htmlspecialchars($user['plan_type']) ?></td>
+                        <td><?= number_format((float)($user['output_gb'] ?? 0), 3) ?> GB</td>
+                        <td><?= number_format((float)($user['input_gb'] ?? 0), 3) ?> GB</td>
+                        <td><strong><?= number_format((float)($user['total_gb'] ?? 0), 3) ?> GB</strong></td>
+                        <td><span class="status-badge <?= $user['status'] === 'active' ? 'status-active' : 'status-expired' ?>"><?= ucfirst($user['status']) ?></span></td>
+                        <td><?= date('M d, Y', strtotime($user['created_at'])) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr><td colspan="8" align="center">No data usage records found</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+        <div class="pagination" data-table="data-usage">
+            <?= renderPagination($page_data_usage, $totalPages_data_usage, 'page_data') ?>
+        </div>
+    </div>
 </div>
 
 <script>
+    // Function to change retention period
+    function changeRetentionPeriod(period) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('retention_period', period);
+        window.location.href = url.toString();
+    }
+
     const activeSubsValue = <?= (int)$activeSubs ?>;
     const dataUsageLabels = <?= json_encode(array_column($dataUsage, 'date')) ?>;
     const dataUsageValues = <?= json_encode(array_column($dataUsage, 'data_usage')) ?>;
@@ -271,8 +621,37 @@ try {
 
     const chartColors = { background: 'rgba(40, 167, 69, 0.2)', border: '#006837', text: '#333' };
  
+    // Generate unique colors for each plan
+    function generatePlanColors(count) {
+        const colors = [
+            '#006837',  // Green
+            '#28a745',  // Light Green
+            '#007BFF',  // Blue
+            '#6F42C1',  // Purple
+            '#FFC107',  // Amber
+            '#FF5722',  // Deep Orange
+            '#E91E63',  // Pink
+            '#00BCD4',  // Cyan
+            '#FF9800',  // Orange
+            '#795548',  // Brown
+            '#9C27B0',  // Deep Purple
+            '#4CAF50'   // Medium Green
+        ];
+        
+        // If we have more plans than predefined colors, generate random colors
+        while (colors.length < count) {
+            const r = Math.floor(Math.random() * 200 + 55);
+            const g = Math.floor(Math.random() * 200 + 55);
+            const b = Math.floor(Math.random() * 200 + 55);
+            colors.push(`rgb(${r}, ${g}, ${b})`);
+        }
+        
+        return colors.slice(0, count);
+    }
+
+    const planColors = generatePlanColors(planLabels.length);
+    
     // Active Vouchers by Plan Pie Chart
-    const planColors = ['#006837', '#B0B0B0', '#007BFF', '#6F42C1'];
     new Chart(document.getElementById('planChart'), {
         type: 'pie',
         data: {
@@ -280,10 +659,21 @@ try {
             datasets: [{
                 data: planValues,
                 backgroundColor: planColors,
-                borderWidth: 1
+                borderWidth: 1,
+                borderColor: '#fff'
             }]
         },
-        options: { plugins: { legend: { position: 'bottom' } } }
+        options: { 
+            plugins: { 
+                legend: { 
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                }
+            }
+        }
     });
 
 

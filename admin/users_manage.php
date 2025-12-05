@@ -132,6 +132,58 @@ $totalPages = ceil($totalRows / $perPage);
     .inactive {color: red; font-weight:bold;}
     .exp-active {color: green; font-weight:bold;}
     .exp-expired {color: red; font-weight:bold;}
+    
+    .name-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .status-active {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .status-inactive {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    .expiry-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .expiry-active {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .expiry-expired {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    .expiry-none {
+        background: #f5f5f5;
+        color: #757575;
+    }
+    
     /* .search-bar { margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;}
     .search-bar input { width:300px; padding:5px 10px; border-radius:5px; border:1px solid #ccc;} */
     .search-filter-grid {
@@ -256,7 +308,7 @@ $totalPages = ceil($totalRows / $perPage);
   }
 
   if ($planName === "NO PLAN" || !$planExpiry) {
-      $expiryText = "<span class='exp-expired'>NO PLAN</span>";
+      $expiryText = "<span class='expiry-badge expiry-none'>NO PLAN</span>";
   } else {
       $expiryTime = strtotime($planExpiry);
       $diff = $expiryTime - time();
@@ -265,12 +317,12 @@ $totalPages = ceil($totalRows / $perPage);
           if ($ago < 3600) $text = floor($ago/60). " min ago";
           elseif ($ago < 86400) $text = floor($ago/3600). " hrs ago";
           else $text = floor($ago/86400). " days ago";
-          $expiryText = "<span class='exp-expired'>Expired ($text)</span>";
+          $expiryText = "<span class='expiry-badge expiry-expired'>Expired ($text)</span>";
       } else {
           if ($diff < 3600) $text = floor($diff/60). " min left";
           elseif ($diff < 86400) $text = floor($diff/3600). " hrs left";
           else $text = floor($diff/86400). " days left";
-          $expiryText = "<span class='exp-active'>Active ($text)</span>";
+          $expiryText = "<span class='expiry-badge expiry-active'>Active ($text)</span>";
       }
   }
 
@@ -278,10 +330,10 @@ $totalPages = ceil($totalRows / $perPage);
 
   <tr>
       <td><?= $i++; ?></td>
-      <td><?= htmlspecialchars($row['name']); ?></td>
+      <td><span class="name-badge"><?= htmlspecialchars($row['name']); ?></span></td>
       <td><?= htmlspecialchars($row['phone']); ?></td>
       <td><?= htmlspecialchars($row['role']); ?></td>
-      <td><span class="<?= ($row['status']==='active')?'active':'inactive' ?>"><?= ucfirst($row['status']) ?></span></td>
+      <td><span class="status-badge <?= ($row['status']==='active')?'status-active':'status-inactive' ?>"><?= ucfirst($row['status']) ?></span></td>
       <td><?= $expiryText ?></td>
       <td><?= $lastOnlineText ?></td>
       <td>

@@ -55,8 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $plans = $pdo->query("SELECT * FROM plans")->fetchAll();
 
-// Fetch recent vouchers
-$stmt = $pdo->query("SELECT id, username, plan_type, rate_limit, expiry, status, created_at, phone FROM vouchers ORDER BY created_at DESC LIMIT 20");
+// Pagination for vouchers
+$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 20;
+$offset = ($page - 1) * $perPage;
+
+// Get total count
+$totalVouchers = $pdo->query("SELECT COUNT(*) FROM vouchers")->fetchColumn();
+$totalPages = ceil($totalVouchers / $perPage);
+
+// Fetch recent vouchers with pagination
+$stmt = $pdo->prepare("SELECT id, username, plan_type, rate_limit, expiry, status, created_at, phone FROM vouchers ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+$stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
 $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!doctype html>
@@ -68,6 +80,87 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <style>
         .status-active { color: green; font-weight: bold; }
         .status-expired { color: red; font-weight: bold; }
+        
+        .username-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .status-badge.status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-badge.status-expired {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .rate-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .rate-5m {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .rate-10m {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .rate-20m {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        
+        .rate-other {
+            background: #f3e5f5;
+            color: #6a1b9a;
+        }
+        
+        .pagination {
+            margin-top: 15px;
+            text-align: center;
+        }
+        
+        .pagination a {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 0 2px;
+            border: 1px solid #ccc;
+            text-decoration: none;
+            color: #333;
+            border-radius: 4px;
+        }
+        
+        .pagination a.active {
+            background-color: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+        
+        .pagination a:hover {
+            background-color: #ddd;
+        }
     </style>
 
 </head>
@@ -143,16 +236,27 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </tr>
                     </thead>
                     <tbody id="voucher-tbody">
-                        <?php foreach ($vouchers as $v): ?>
+                        <?php foreach ($vouchers as $v): 
+                            // Determine rate limit class
+                            $rateLimit = $v['rate_limit'] ?? '-';
+                            $rateClass = 'rate-other';
+                            if (strpos($rateLimit, '5M/5M') !== false) {
+                                $rateClass = 'rate-5m';
+                            } elseif (strpos($rateLimit, '10M/10M') !== false) {
+                                $rateClass = 'rate-10m';
+                            } elseif (strpos($rateLimit, '20M/20M') !== false) {
+                                $rateClass = 'rate-20m';
+                            }
+                        ?>
                         <tr>
                             <td><?= htmlspecialchars($v['id'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($v['username'] ?? 'N/A') ?></td>
+                            <td><span class="username-badge"><?= htmlspecialchars($v['username'] ?? 'N/A') ?></span></td>
                             <td><?= htmlspecialchars($v['plan_type'] ?? 'Unknown') ?></td>
-                            <td><?= htmlspecialchars($v['rate_limit'] ?? '-') ?></td>
+                            <td><span class="rate-badge <?= $rateClass ?>"><?= htmlspecialchars($rateLimit) ?></span></td>
                             <td><?= htmlspecialchars($v['expiry'] ?? '-') ?></td>
                             <td>
-                                <span class="status-<?= htmlspecialchars($v['status']) ?>">
-                                    <?= htmlspecialchars($v['status']) ?>
+                                <span class="status-badge status-<?= htmlspecialchars($v['status']) ?>">
+                                    <?= ucfirst(htmlspecialchars($v['status'])) ?>
                                 </span>
                             </td>
                             <td><?= htmlspecialchars($v['created_at'] ?? '-') ?></td>
@@ -161,6 +265,21 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                
+                <!-- Pagination -->
+                <div class="pagination">
+                    <?php if($page > 1): ?>
+                        <a href="?page=<?= $page-1 ?>">« Previous</a>
+                    <?php endif; ?>
+
+                    <?php for($p=1; $p<=$totalPages; $p++): ?>
+                        <a href="?page=<?= $p ?>" class="<?= $p == $page ? 'active' : '' ?>"><?= $p ?></a>
+                    <?php endfor; ?>
+
+                    <?php if($page < $totalPages): ?>
+                        <a href="?page=<?= $page+1 ?>">Next »</a>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>

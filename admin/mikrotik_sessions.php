@@ -94,13 +94,12 @@ $stmt = $pdo->prepare("
            acctstarttime, 
            acctstoptime, 
            framedipaddress, 
-           callingstationid AS mac_address,
+           callingstationid,
            ROUND(acctinputoctets / (1024*1024*1024), 4) AS input_gb,
            ROUND(acctoutputoctets / (1024*1024*1024), 4) AS output_gb,
            ROUND((acctinputoctets + acctoutputoctets) / (1024*1024*1024), 4) AS total_gb,
            acctterminatecause
     FROM radacct
-    WHERE acctstoptime IS NULL 
     ORDER BY acctstarttime DESC
     LIMIT :limit OFFSET :offset
 ");
@@ -194,6 +193,52 @@ try {
     .status-active { color: green; font-weight: bold; }
     .status-expired { color: red; font-weight: bold; }
     
+    .username-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .reply-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .reply-accept {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .reply-reject {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .status-badge.status-active {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .status-badge.status-expired {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
     tr.expired { background:#ffdddd; }
     .badge { padding:4px 8px; border-radius:6px; color:#fff; font-size:12px; }
     .badge-online { background:#28a745; }
@@ -228,7 +273,7 @@ try {
         <h2>Active Sessions</h2>
         <table>
             <thead>
-                <tr><th>User</th><th>IP</th><th>MAC</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Username</th><th>IP</th><th>MAC</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody>
             <?php if(!empty($active_users)): ?>
@@ -244,7 +289,7 @@ try {
                     $isExpired = in_array($username, $expired_users);
                 ?>
                 <tr class="<?= $isExpired ? 'expired' : '' ?>">
-                    <td><?= htmlspecialchars($username) ?></td>
+                    <td><span class="username-badge"><?= htmlspecialchars($username) ?></span></td>
                     <td><?= htmlspecialchars($ip) ?></td>
                     <td><?= htmlspecialchars($mac_from_router) ?> (DB: <?= htmlspecialchars($mac_bound) ?>)</td>
                     <td><?= $isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-online">Online</span>' ?></td>
@@ -278,15 +323,15 @@ try {
             <?php if(!empty($rad_sessions)): ?>
                 <?php foreach($rad_sessions as $s): ?>
                 <tr class="<?= in_array($s['username'], $expired_users) ? 'expired' : '' ?>">
-                    <td><?= htmlspecialchars($s['username']) ?></td>
-                    <td><?= htmlspecialchars($s['framedipaddress'] ?? '-') ?></td>
-                    <td><?= htmlspecialchars($s['callingstationid'] ?? '-') ?></td>
+                    <td><span class="username-badge"><?= htmlspecialchars($s['username']) ?></span></td>
+                    <td><?= htmlspecialchars($s['framedipaddress'] ?: '-') ?></td>
+                    <td><?= htmlspecialchars($s['callingstationid'] ?: '-') ?></td>
                     <td><?= htmlspecialchars($s['acctstarttime']) ?></td>
-                    <td><?= htmlspecialchars($s['acctstoptime'] ?? '-') ?></td>
+                    <td><?= htmlspecialchars($s['acctstoptime'] ?: '-') ?></td>
                     <td><?= number_format((float)($s['input_gb'] ?? 0),3) ?> GB</td>
                     <td><?= number_format((float)($s['output_gb'] ?? 0),3) ?> GB</td>
                     <td><?= number_format((float)($s['total_gb'] ?? 0),3) ?> GB</td>
-                    <td><?= htmlspecialchars($s['acctterminatecause'] ?? '-') ?></td>
+                    <td><?= htmlspecialchars($s['acctterminatecause'] ?: '-') ?></td>
                 </tr>
                 <?php endforeach; ?>
             <?php else: ?>
@@ -307,11 +352,13 @@ try {
             <table>
                 <thead><tr><th>Username</th><th>Password</th><th>Reply</th><th>Auth Time</th></tr></thead>
                 <tbody>
-                    <?php foreach($auths as $a): ?>
+                    <?php foreach($auths as $a): 
+                        $replyClass = ($a['reply'] === 'Access-Accept') ? 'reply-accept' : 'reply-reject';
+                    ?>
                     <tr class="<?= $a['reply'] !== 'Access-Accept' ? 'expired' : '' ?>">
-                        <td><?= htmlspecialchars($a['username']) ?></td>
+                        <td><span class="username-badge"><?= htmlspecialchars($a['username']) ?></span></td>
                         <td><?= htmlspecialchars($a['pass']) ?></td>
-                        <td><?= htmlspecialchars($a['reply']) ?></td>
+                        <td><span class="reply-badge <?= $replyClass ?>"><?= htmlspecialchars($a['reply']) ?></span></td>
                         <td><?= htmlspecialchars($a['authdate']) ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -334,7 +381,7 @@ try {
             <tbody>
                 <?php foreach($users as $u): ?>
                 <tr>
-                    <td><?= htmlspecialchars($u['username']) ?></td>
+                    <td><span class="username-badge"><?= htmlspecialchars($u['username']) ?></span></td>
                     <td><?= htmlspecialchars($u['attribute']) ?></td>
                     <td><?= htmlspecialchars($u['value']) ?></td>
                 </tr>
@@ -357,12 +404,12 @@ try {
                 <?php if (!empty($vouchers)): ?>
                     <?php foreach ($vouchers as $v): ?>
                     <tr>
-                        <td><?= htmlspecialchars($v['voucher_code']) ?></td>
+                        <td><span class="username-badge"><?= htmlspecialchars($v['voucher_code']) ?></span></td>
                         <td><?= htmlspecialchars($v['plan_type']) ?></td>
                         <td><?= htmlspecialchars($v['expiry']) ?></td>
                         <td>
-                            <span class="status-<?= htmlspecialchars($v['voucher_status']) ?>">
-                                <?= htmlspecialchars($v['voucher_status']) ?>
+                            <span class="status-badge status-<?= htmlspecialchars($v['voucher_status']) ?>">
+                                <?= ucfirst(htmlspecialchars($v['voucher_status'])) ?>
                             </span>
                         </td>
                         <!-- <td><?= htmlspecialchars($v['voucher_status']) ?></td> -->

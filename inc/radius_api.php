@@ -236,22 +236,38 @@ if ($type === 'create_voucher') {
         : (int)($plan['duration_minutes'] ?? 1440);
 
     // --- Calculate plan label ---
-     if ($duration_minutes >= 43200) {
+    if ($duration_minutes >= 43200) {
         $plan_type_label = '1 Month';
     } elseif ($duration_minutes >= 10080) {
         $plan_type_label = '1 Week';
     } elseif ($duration_minutes >= 1440) {
         $plan_type_label = '1 Day';
+    } elseif ($duration_minutes >= 720) {
+        $plan_type_label = '12 Hours';
+    } elseif ($duration_minutes >= 300) {
+        $plan_type_label = '5 Hours';
+    } elseif ($duration_minutes >= 180) {
+        $plan_type_label = '3 Hours';
+    } elseif ($duration_minutes >= 120) {
+        $plan_type_label = '2 Hours';
     } elseif ($duration_minutes >= 60) {
         $plan_type_label = '1 Hour';
     } else {
         $plan_type_label = $plan['title'] ?? 'Custom';
     }
 
-
-    // --- Get rate limit ---
-    $plan_type_key = strtolower(str_replace(' ', '', $plan['title']));
-    $rate_limit = $BANDWIDTH_BY_PLAN[$plan_type_key] ?? '5M/5M';
+    // --- Get rate limit (5M/5M for hourly/daily plans, 10M/10M for weekly/monthly) ---
+    if ($duration_minutes <= 1440) {
+        // 1 hour to 1 day (including 2hr, 3hr, 5hr, 12hr) = 5M/5M
+        $rate_limit = '5M/5M';
+    } elseif ($duration_minutes >= 10080) {
+        // 1 week or more = 10M/10M
+        $rate_limit = '10M/10M';
+    } else {
+        // Fallback to plan-specific or default
+        $plan_type_key = strtolower(str_replace(' ', '', $plan['title']));
+        $rate_limit = $BANDWIDTH_BY_PLAN[$plan_type_key] ?? '5M/5M';
+    }
 
     // ========== TOP-UP LOGIC: Check if phone already has active voucher ==========
     $topup_check = $pdo->prepare("SELECT * FROM vouchers WHERE phone = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1");
