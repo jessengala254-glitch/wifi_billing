@@ -415,8 +415,8 @@ if ($type === 'create_voucher') {
         ->execute([$voucher_username, $rate_limit]);
     
     // 5. Framed-Pool (tells MikroTik to assign IP from hotspot pool)
-    $pdo->prepare("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Framed-Pool', ':=', ?)")
-        ->execute([$voucher_username, 'hotspot']);
+    // $pdo->prepare("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Framed-Pool', ':=', ?)")
+    //     ->execute([$voucher_username, 'hotspot']);
 
     // --- Create session entry ---
     $sessionInsert = $pdo->prepare("

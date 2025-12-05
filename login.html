@@ -1,7 +1,3 @@
-
-// MikroTik Hotspot Login Page
-// Handles voucher authentication for WiFi access
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,104 +6,151 @@
 <meta http-equiv="pragma" content="no-cache" />
 <meta http-equiv="expires" content="-1" />  
 <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
-<script>
-// On first login (no username), redirect to plan selection
-// On return (after buying), show login form
-setTimeout(function() {
-    var usernameField = document.querySelector('input[name="username"]');
-    if (usernameField && (!usernameField.value || usernameField.value === '')) {
-        // No username provided, redirect to buy a plan
-        window.location.href = 'http://192.168.10.68/leokonnect/index.php?from_captive=1&return_url=$(link-orig)';
-    }
-}, 300);
-</script>
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://kit.fontawesome.com/e097ce4e3c.js" crossorigin="anonymous"></script>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-body {
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+body {
     font-family: 'Poppins', 'Arial', sans-serif;
     background: linear-gradient(135deg, #006837, #00c853);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 20px;
 }
-.login-container {
+.container {
     background: white;
-    padding: 40px;
+    padding: 50px 40px;
     border-radius: 15px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    max-width: 420px;
-    width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    max-width: 450px;
+    width: 100%;
     text-align: center;
+    
 }
+.header {
+    margin-bottom: 10px;
+}
+
 .logo {
-    text-align: center;
-    font-size: 32px;
-    color: #28a745;
-    margin-bottom: 20px;
-    font-weight: bold;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 28px;
+  color: #333;
 }
-h2 {
-    text-align: center;
-    color: #28a745;
-    margin-bottom: 30px;
-    font-size: 24px;
+
+.logo span {
+  color: var(--secondary);
 }
-input[type="text"], input[type="password"] {
-    width: 100%;
-    padding: 12px;
-    margin: 10px 0;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-sizing: border-box;
-    font-size: 16px;
+
+.logo i {
+  color: var(--secondary);
+  font-size: 1.2em;
 }
-input[type="text"]:focus, input[type="password"]:focus {
-    border-color: #28a745;
-    box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
-    outline: none;
-}
-input[type="submit"] {
-    width: 100%;
-    padding: 12px;
-    background: #28a745;
-    color: white;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    font-size: 16px;
-    cursor: pointer;
-    margin-top: 20px;
-    font-weight: bold;
-    transition: background 0.3s ease;
-}
-input[type="submit"]:hover {
-    background: white;
-    color: #28a745;
-    border-color: #28a745;
-}
-.error {
-    color: #e74c3c;
-    text-align: center;
-    margin-top: 10px;
+
+.subtitle {
     font-size: 14px;
-}
-.buy-link {
-    text-align: center;
-    margin-top: 20px;
     color: #666;
-    font-size: 14px;
+    margin-bottom: 20px;
 }
-.buy-link a {
+.form-group {
+    margin-bottom: 10px;
+    text-align: left;
+}
+label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+input[type="text"],
+input[type="password"] {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: 'Poppins', sans-serif;
+    transition: border-color 0.3s ease;
+}
+input[type="text"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+}
+button[type="submit"] {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #006837, #00c853);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-top: 10px;
+}
+button[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 104, 55, 0.3);
+}
+button[type="submit"]:active {
+    transform: translateY(0);
+}
+.error-message {
+    background: #fee;
+    color: #c33;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    display: none;
+}
+.error-message.show {
+    display: block;
+}
+.help-text {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 1px solid #eee;
+    font-size: 13px;
+    color: #999;
+}
+.help-text a {
     color: #28a745;
     text-decoration: none;
-    font-weight: bold;
+    font-weight: 600;
+}
+.help-text a:hover {
+    text-decoration: underline;
+}
+.info-box {
+    background: #f0f8f5;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    font-size: 13px;
+    color: #555;
+    border-left: 4px solid #28a745;
 }
 </style>
 </head>
 <body>
 
-<!-- MikroTik CHAP Support -->
+<!-- MikroTik CHAP Authentication -->
 $(if chap-id)
     <form name="sendin" action="$(link-login-only)" method="post" style="display:none;">
         <input type="hidden" name="username" />
@@ -127,35 +170,46 @@ $(if chap-id)
     </script>
 $(endif)
 
-<div class="login-container">
-    <div class="logo">🌐 Leo Konnect</div>
-    <h2>WiFi Login</h2>
-    
-    <form name="login" action="$(link-login-only)" method="post"
-        $(if chap-id) onSubmit="return doLogin()" $(endif)>
+<div class="container">
+    <div class="header">
+        <a href="#" class="logo">
+            <i class="fas fa-wifi"></i> Leo <span>Konnect</span>
+        </a>
+        <div class="subtitle">WiFi Access</div>
+    </div>
+
+    <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onsubmit="return doLogin()" $(endif)>
         <input type="hidden" name="dst" value="$(link-orig)" />
         <input type="hidden" name="popup" value="true" />
         
-        <input autocomplete="on" name="username" placeholder="Voucher Username" 
-               type="text" value="$(username)" required />
+        $(if error)
+        <div class="error-message show">⚠️ $(error)</div>
+        $(endif)
         
-        <input autocomplete="off" name="password" placeholder="Voucher Password" 
-               type="password" required />
+        <div class="form-group">
+            <label>Voucher Username</label>
+            <input type="text" name="username" placeholder="Enter your username" value="$(username)" autocomplete="off" required />
+        </div>
         
-        <input name="submit" type="submit" value="Connect to WiFi" />
+        <div class="form-group">
+            <label>Voucher Password</label>
+            <input type="password" name="password" placeholder="Enter your password" autocomplete="off" required />
+        </div>
+        
+        <button type="submit">Connect to WiFi</button>
+        
+        <div class="info-box">
+            ℹ️ Use the voucher credentials sent to your phone via SMS
+        </div>
     </form>
-    
-    $(if error)
-    <div class="error">$(error)</div>
-    $(endif)
-    
-    <div class="buy-link">
-        Don't have a voucher? <a href="http://192.168.10.68/leokonnect/index.php?from_captive=1" target="_blank">Buy Now</a>
+
+    <div class="help-text">
+        Don't have a voucher? <a href="http://192.168.10.68/leokonnect/index.php?from_captive=1" target="_blank">Buy one now</a>
     </div>
 </div>
 
-<script type="text/javascript">
-    document.login.username.focus();
+<script>
+document.login.username.focus();
 </script>
 
 </body>
