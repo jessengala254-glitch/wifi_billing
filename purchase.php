@@ -61,7 +61,7 @@ const fromCaptive = document.getElementById('from_captive').value === '1';
 
 payForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    statusDiv.innerText = "Initializing payment...";
+    statusDiv.innerText = "Initiating payment...";
     voucherDiv.innerText = "";
 
     try {
@@ -69,42 +69,75 @@ payForm.addEventListener('submit', async (e) => {
         const res = await fetch('../leokonnect/api/payments.php', { method: 'POST', body: formData });
         const data = await res.json();
 
-        if (!data || !data.payment_id || !data.authorization_url) {
+        // Check for errors
+        if (data.error) {
+            statusDiv.innerText = "❌ Error: " + data.error;
+            return;
+        }
+
+        if (!data || !data.payment_id) {
             statusDiv.innerText = "Could not start payment. Try again.";
             return;
         }
 
-        // Open IntaSend payment page in new tab
-        window.open(data.authorization_url, '_blank');
-        statusDiv.innerText = "Payment page opened. Waiting for confirmation...";
-
         const paymentId = data.payment_id;
         const returnUrl = new URLSearchParams(formData).get('return_url');
 
-        // Poll for payment confirmation
-        const poll = setInterval(async () => {
-            const checkRes = await fetch(`../leokonnect/api/check_payment.php?payment_id=${paymentId}`);
-            const checkData = await checkRes.json();
+        // Check if using SmartPay (STK push) or mock
+        if (data.gateway === 'SmartPay') {
+            statusDiv.innerText = "📱 STK push sent to your phone. Please enter your M-Pesa PIN to complete payment.";
+            
+            // Poll for payment confirmation
+            const poll = setInterval(async () => {
+                const checkRes = await fetch(`../leokonnect/api/check_payment.php?payment_id=${paymentId}`);
+                const checkData = await checkRes.json();
 
-            if (checkData.status === 'success') {
+                if (checkData.status === 'success') {
+                    clearInterval(poll);
+                    statusDiv.innerText = "✅ Payment successful!";
+                    voucherDiv.innerText = `Username: ${checkData.username}\nPassword: ${checkData.password}\nValid until: ${checkData.expires}\n\n📱 Use these credentials to login to the WiFi network.`;
+                    
+                    // If coming from captive portal, redirect after 5 seconds
+                    if (fromCaptive) {
+                        setTimeout(() => {
+                            window.location.href = returnUrl || 'http://www.google.com';
+                        }, 5000);
+                    }
+                } else if (checkData.status === 'failed') {
+                    clearInterval(poll);
+                    statusDiv.innerText = "❌ Payment failed. Please try again.";
+                } else {
+                    statusDiv.innerText = "⏳ Waiting for payment confirmation... (Enter M-Pesa PIN on your phone)";
+                }
+            }, 3000); // Check every 3 seconds
+
+            // Stop polling after 2 minutes
+            setTimeout(() => {
                 clearInterval(poll);
-                statusDiv.innerText = "✅ Payment successful!";
-                voucherDiv.innerText = `Username: ${checkData.username}\nPassword: ${checkData.password}\nValid until: ${checkData.expires}\n\n📱 Use these credentials to login to the WiFi network.`;
+                if (!voucherDiv.innerText) {
+                    statusDiv.innerText = "⏱️ Payment timeout. Please check your M-Pesa messages or try again.";
+                }
+            }, 120000);
+
+        } else if (data.gateway === 'MOCK') {
+            // Mock payment - instant success
+            statusDiv.innerText = "✅ Payment successful! (Test Mode)";
+            if (data.voucher) {
+                // Handle both new voucher and topped-up voucher response formats
+                const username = data.voucher.username || (data.voucher.voucher && data.voucher.voucher.username);
+                const password = data.voucher.password || (data.voucher.voucher && data.voucher.voucher.password);
+                const expiry = data.voucher.new_expiry || data.voucher.expiry || (data.voucher.voucher && data.voucher.voucher.expiry);
                 
-                // If coming from captive portal, redirect after 3 seconds
+                voucherDiv.innerText = `Username: ${username}\nPassword: ${password}\nValid until: ${expiry}\n\n📱 Use these credentials to login to the WiFi network.`;
+                
                 if (fromCaptive) {
                     setTimeout(() => {
-                        // Redirect to return URL or try to open WiFi login
                         window.location.href = returnUrl || 'http://www.google.com';
                     }, 3000);
                 }
-            } else if (checkData.status === 'failed') {
-                clearInterval(poll);
-                statusDiv.innerText = "❌ Payment failed: " + (checkData.desc || 'Declined');
-            } else {
-                statusDiv.innerText = "⏳ Waiting for payment confirmation...";
             }
-        }, 5000);
+        }
+
     } catch (err) {
         statusDiv.innerText = "❌ Payment error: " + err.message;
     }

@@ -40,36 +40,39 @@ try {
     $stmt->execute([$user_id, $phone, $plan_id, $plan['price']]);
     $payment_id = $pdo->lastInsertId(); // Get the auto-generated ID
 
-    // ========== PAYMENT GATEWAY ROUTING ==========
-    // Try IntaSend first, fall back to mock if it fails
+    // ========== SMARTPAYPESA PAYMENT GATEWAY ==========
+    // SmartPayPesa STK Push Integration
     
-    // Try real IntaSend payment
-    $checkout_url = null;
     $use_mock = false;
     
-    $payload = [
+    // SmartPayPesa credentials
+    $smartpay_api_key = "bbd04d2817d0cc29d72db948e1bab15be5e50fda87ad128220dcec186038d2b9";
+    
+    // Format phone number (remove leading 0, add 254)
+    $formatted_phone = $phone;
+    if (substr($formatted_phone, 0, 1) === '0') {
+        $formatted_phone = '254' . substr($formatted_phone, 1);
+    }
+    
+    // SmartPayPesa STK Push payload (correct format from documentation)
+    $stk_payload = [
+        "phone" => $formatted_phone,
         "amount" => floatval($plan['price']),
-        "currency" => "KES",
-        "customer" => [
-            "phone_number" => $phone
-        ],
-        "payment_methods" => ["mpesa"],
-        "metadata" => [
-            "payment_id" => $payment_id
-        ],
-        "callback_url" => "https://192.168.10.68/leokonnect/api/intasend_callback.php?payment_id=" . $payment_id
+        "account_reference" => "PAY-" . $payment_id,
+        "description" => $plan['title'] . " - Leo Konnect"
     ];
-
-    // Attempt IntaSend API call
-    $ch = curl_init("https://api.intasend.com/v1/invoices/");
+    
+    // Attempt SmartPayPesa API call (correct endpoint from documentation)
+    $ch = curl_init("https://api.smartpay.co.ke/v1/initiatestk");
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "Content-Type: application/json",
-        "Authorization: Bearer ISSecretKey_live_8a79adee-83bc-419f-a139-587c80baf930"
+        "Authorization: " . $smartpay_api_key,
+        "Accept: application/json"
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($stk_payload));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
@@ -77,19 +80,77 @@ try {
     $curl_error = curl_error($ch);
     curl_close($ch);
 
-    // Check if IntaSend call was successful
-    if (!$curl_error && $http_code == 200) {
+    // Log the response for debugging
+    error_log("SmartPay Response (HTTP $http_code): " . substr($response, 0, 500));
+
+    // Check if SmartPayPesa call was successful
+    if (!$curl_error && ($http_code == 200 || $http_code == 201)) {
         $res = json_decode($response, true);
-        if ($res) {
-            $checkout_url = $res['url'] ?? $res['checkout_link'] ?? $res['invoice_url'] ?? null;
+        
+        // Check if JSON decode was successful
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("SmartPay JSON decode error: " . json_last_error_msg());
+        } elseif ($res && isset($res['success']) && $res['success'] === true) {
+            // Update payment with checkout request ID from SmartPay
+            $checkout_id = $res['checkoutRequestID'] ?? null;
+            if ($checkout_id) {
+                $stmt = $pdo->prepare("UPDATE payments SET mpesa_receipt = ? WHERE id = ?");
+                $stmt->execute([$checkout_id, $payment_id]);
+            }
+            
+            // Return success - STK push sent
+            http_response_code(200);
+            echo json_encode([
+                "result" => "ok",
+                "payment_id" => $payment_id,
+                "message" => "STK push sent to " . $phone . ". Please enter your M-Pesa PIN.",
+                "checkout_request_id" => $checkout_id,
+                "gateway" => "SmartPay"
+            ]);
+            exit;
+        } else {
+            error_log("SmartPay error: " . ($res['message'] ?? 'Unknown error'));
         }
+    } else {
+        error_log("SmartPay API failed (HTTP $http_code): $curl_error");
     }
 
-    // If IntaSend failed or invalid, fall back to mock payment
-    if (!$checkout_url) {
-        error_log("IntaSend integration unavailable (HTTP $http_code). Falling back to mock payment for payment_id=$payment_id");
-        $use_mock = true;
-        $checkout_url = "http://192.168.10.68/leokonnect/api/mock_payment.php?payment_id=" . $payment_id;
+    // If SmartPay failed, fall back to mock payment
+    error_log("SmartPay integration unavailable. Falling back to mock payment for payment_id=$payment_id");
+    $use_mock = true;
+    
+    // Mock payment - auto-approve for testing
+    $stmt = $pdo->prepare("UPDATE payments SET status = 'success', mpesa_receipt = ? WHERE id = ?");
+    $stmt->execute(['MOCK-' . time(), $payment_id]);
+    
+    // Create voucher immediately for mock - call radius API via HTTP
+    $voucher_data = null;
+    $radius_payload = json_encode([
+        "type" => "create_voucher",
+        "plan_id" => $plan_id,
+        "phone" => $phone
+    ]);
+    
+    $ch = curl_init("http://127.0.0.1/leokonnect/inc/radius_api.php");
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $radius_payload);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    $voucher_response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    error_log("RADIUS API Response (HTTP $http_code): " . substr($voucher_response, 0, 500));
+    
+    if ($voucher_response) {
+        $voucher_data = json_decode($voucher_response, true);
+        // Link payment to user if voucher created
+        if ($voucher_data && isset($voucher_data['user_id'])) {
+            $stmt = $pdo->prepare("UPDATE payments SET user_id = ? WHERE id = ?");
+            $stmt->execute([$voucher_data['user_id'], $payment_id]);
+        }
     }
 
     // Return payment initiation response
@@ -97,8 +158,9 @@ try {
     echo json_encode([
         "result" => "ok",
         "payment_id" => $payment_id,
-        "authorization_url" => $checkout_url,
-        "gateway" => $use_mock ? "MOCK" : "IntaSend"
+        "message" => "Mock payment successful (SmartPayPesa unavailable)",
+        "gateway" => "MOCK",
+        "voucher" => $voucher_data
     ]);
     exit;
 

@@ -29,6 +29,7 @@
         <li><a href="index.php" onclick="closeSidebar()">Home</a></li>
         <li><a href="users_manage.php" onclick="closeSidebar()">Users</a></li>
         <li><a href="plans_manage.php" onclick="closeSidebar()">Plans</a></li>
+        <li><a href="payments_manage.php" onclick="closeSidebar()"><i class="fa fa-credit-card"></i>Payments</a></li>
         <li><a href="admin_reports.php" onclick="closeSidebar()">Reports</a></li>
         <li><a href="logs_view.php" onclick="closeSidebar()">Logs</a></li>
         <li><a href="mikrotik_sessions.php" onclick="closeSidebar()"><i class="fa fa-wifi"></i>Hotspot Sessions</a></li>

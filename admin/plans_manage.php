@@ -55,17 +55,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $plans = $pdo->query("SELECT * FROM plans")->fetchAll();
 
+// Get plan statistics
+$planFilter = $_GET['plan_filter'] ?? 'all';
+
+// Total plans count
+$totalPlansStmt = $pdo->query("SELECT COUNT(*) FROM plans WHERE active = 1");
+$totalPlans = $totalPlansStmt->fetchColumn();
+
+// Hotspot plans
+$hotspotPlansStmt = $pdo->query("SELECT COUNT(*) FROM plans WHERE active = 1 AND (title LIKE '%hotspot%' OR description LIKE '%hotspot%')");
+$hotspotPlans = $hotspotPlansStmt->fetchColumn();
+
+// PPPoE plans
+$pppoePlansStmt = $pdo->query("SELECT COUNT(*) FROM plans WHERE active = 1 AND (title LIKE '%pppoe%' OR description LIKE '%pppoe%')");
+$pppoePlans = $pppoePlansStmt->fetchColumn();
+
+// Free trial plans
+$freeTrialStmt = $pdo->query("SELECT COUNT(*) FROM plans WHERE active = 1 AND price = 0");
+$freeTrialPlans = $freeTrialStmt->fetchColumn();
+
 // Pagination for vouchers
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+$voucherFilter = $_GET['voucher_filter'] ?? 'all';
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
 
-// Get total count
-$totalVouchers = $pdo->query("SELECT COUNT(*) FROM vouchers")->fetchColumn();
-$totalPages = ceil($totalVouchers / $perPage);
+// Get voucher statistics
+// Total vouchers
+$totalVouchersStmt = $pdo->query("SELECT COUNT(*) FROM vouchers");
+$totalVouchers = $totalVouchersStmt->fetchColumn();
+
+// Hotspot vouchers
+$hotspotVouchersStmt = $pdo->query("SELECT COUNT(*) FROM vouchers WHERE plan_type NOT LIKE '%pppoe%'");
+$hotspotVouchers = $hotspotVouchersStmt->fetchColumn();
+
+// PPPoE vouchers
+$pppoeVouchersStmt = $pdo->query("SELECT COUNT(*) FROM vouchers WHERE plan_type LIKE '%pppoe%'");
+$pppoeVouchers = $pppoeVouchersStmt->fetchColumn();
+
+// Expired vouchers
+$expiredVouchersStmt = $pdo->query("SELECT COUNT(*) FROM vouchers WHERE expiry < NOW() AND status != 'active'");
+$expiredVouchers = $expiredVouchersStmt->fetchColumn();
+
+// Online vouchers
+$onlineVouchersStmt = $pdo->query("SELECT COUNT(DISTINCT v.id) FROM vouchers v INNER JOIN radacct r ON v.username = r.username WHERE r.acctstoptime IS NULL");
+$onlineVouchers = $onlineVouchersStmt->fetchColumn();
+
+// Active vouchers
+$activeVouchersStmt = $pdo->query("SELECT COUNT(*) FROM vouchers WHERE status = 'active' AND expiry > NOW()");
+$activeVouchers = $activeVouchersStmt->fetchColumn();
+
+// Build voucher query based on filter
+$voucherQuery = "SELECT id, username, plan_type, rate_limit, expiry, status, created_at, phone FROM vouchers WHERE 1=1";
+
+if ($voucherFilter === 'hotspot') {
+    $voucherQuery .= " AND plan_type NOT LIKE '%pppoe%'";
+} elseif ($voucherFilter === 'pppoe') {
+    $voucherQuery .= " AND plan_type LIKE '%pppoe%'";
+} elseif ($voucherFilter === 'expired') {
+    $voucherQuery .= " AND expiry < NOW() AND status != 'active'";
+} elseif ($voucherFilter === 'online') {
+    $voucherQuery .= " AND id IN (SELECT DISTINCT v.id FROM vouchers v INNER JOIN radacct r ON v.username = r.username WHERE r.acctstoptime IS NULL)";
+} elseif ($voucherFilter === 'active') {
+    $voucherQuery .= " AND status = 'active' AND expiry > NOW()";
+}
+
+$voucherQuery .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
 
 // Fetch recent vouchers with pagination
-$stmt = $pdo->prepare("SELECT id, username, plan_type, rate_limit, expiry, status, created_at, phone FROM vouchers ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+$stmt = $pdo->prepare($voucherQuery);
 $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
@@ -161,6 +219,68 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .pagination a:hover {
             background-color: #ddd;
         }
+        
+        /* Tabs styling - reused from users_manage */
+        .plan-tabs, .voucher-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+        
+        .plan-tab, .voucher-tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 15px 25px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            text-decoration: none;
+            color: #666;
+            font-weight: 500;
+            font-size: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: -2px;
+        }
+        
+        .plan-tab:hover, .voucher-tab:hover {
+            background: #e3f2fd;
+        }
+        
+        .plan-tab.active, .voucher-tab.active {
+            background: white;
+            color: var(--secondary);
+            border-bottom: 3px solid var(--secondary);
+        }
+        
+        .tab-icon {
+            font-size: 16px;
+        }
+        
+        .tab-count {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.1);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .plan-tab.active .tab-count, .voucher-tab.active .tab-count {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .section-description {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
     </style>
 
 </head>
@@ -170,6 +290,35 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <h1>Manage Plans</h1>
         <div class="outer-board">
             <h2>Current Plans</h2>
+            <p class="section-description">Manage your WiFi subscription plans. Configure pricing, duration, and plan details.</p>
+            
+            <!-- Plan Tabs -->
+            <div class="plan-tabs">
+                <a href="?plan_filter=all&page=<?= $page ?>&voucher_filter=<?= $voucherFilter ?>" 
+                   class="plan-tab <?= $planFilter === 'all' ? 'active' : '' ?>">
+                    <span class="tab-icon">📋</span>
+                    <span>All Plans</span>
+                    <span class="tab-count"><?= $totalPlans ?></span>
+                </a>
+                <a href="?plan_filter=hotspot&page=<?= $page ?>&voucher_filter=<?= $voucherFilter ?>" 
+                   class="plan-tab <?= $planFilter === 'hotspot' ? 'active' : '' ?>">
+                    <span class="tab-icon">📡</span>
+                    <span>Hotspot</span>
+                    <span class="tab-count"><?= $hotspotPlans ?></span>
+                </a>
+                <a href="?plan_filter=pppoe&page=<?= $page ?>&voucher_filter=<?= $voucherFilter ?>" 
+                   class="plan-tab <?= $planFilter === 'pppoe' ? 'active' : '' ?>">
+                    <span class="tab-icon">🔗</span>
+                    <span>PPPoE</span>
+                    <span class="tab-count"><?= $pppoePlans ?></span>
+                </a>
+                <a href="?plan_filter=trial&page=<?= $page ?>&voucher_filter=<?= $voucherFilter ?>" 
+                   class="plan-tab <?= $planFilter === 'trial' ? 'active' : '' ?>">
+                    <span class="tab-icon">🎁</span>
+                    <span>Free Trial</span>
+                    <span class="tab-count"><?= $freeTrialPlans ?></span>
+                </a>
+            </div>
             
             <table>
                 <thead>
@@ -221,6 +370,48 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <div class="outer-board">
             <h2>Recent Vouchers</h2>
+            <p class="section-description">Track generated vouchers and their current status. Monitor active, expired, and online users.</p>
+            
+            <!-- Voucher Tabs -->
+            <div class="voucher-tabs">
+                <a href="?voucher_filter=all&plan_filter=<?= $planFilter ?>" 
+                   class="voucher-tab <?= $voucherFilter === 'all' ? 'active' : '' ?>">
+                    <span class="tab-icon">🎫</span>
+                    <span>All Vouchers</span>
+                    <span class="tab-count"><?= $totalVouchers ?></span>
+                </a>
+                <a href="?voucher_filter=hotspot&plan_filter=<?= $planFilter ?>" 
+                   class="voucher-tab <?= $voucherFilter === 'hotspot' ? 'active' : '' ?>">
+                    <span class="tab-icon">📡</span>
+                    <span>Hotspot</span>
+                    <span class="tab-count"><?= $hotspotVouchers ?></span>
+                </a>
+                <a href="?voucher_filter=pppoe&plan_filter=<?= $planFilter ?>" 
+                   class="voucher-tab <?= $voucherFilter === 'pppoe' ? 'active' : '' ?>">
+                    <span class="tab-icon">🔗</span>
+                    <span>PPPoE</span>
+                    <span class="tab-count"><?= $pppoeVouchers ?></span>
+                </a>
+                <a href="?voucher_filter=expired&plan_filter=<?= $planFilter ?>" 
+                   class="voucher-tab <?= $voucherFilter === 'expired' ? 'active' : '' ?>">
+                    <span class="tab-icon">⏰</span>
+                    <span>Expired</span>
+                    <span class="tab-count"><?= $expiredVouchers ?></span>
+                </a>
+                <a href="?voucher_filter=online&plan_filter=<?= $planFilter ?>" 
+                   class="voucher-tab <?= $voucherFilter === 'online' ? 'active' : '' ?>">
+                    <span class="tab-icon">🟢</span>
+                    <span>Online</span>
+                    <span class="tab-count"><?= $onlineVouchers ?></span>
+                </a>
+                <a href="?voucher_filter=active&plan_filter=<?= $planFilter ?>" 
+                   class="voucher-tab <?= $voucherFilter === 'active' ? 'active' : '' ?>">
+                    <span class="tab-icon">✅</span>
+                    <span>Active</span>
+                    <span class="tab-count"><?= $activeVouchers ?></span>
+                </a>
+            </div>
+            
             <div id="voucher-table">
                 <table>
                     <thead>
@@ -269,15 +460,30 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <!-- Pagination -->
                 <div class="pagination">
                     <?php if($page > 1): ?>
-                        <a href="?page=<?= $page-1 ?>">« Previous</a>
+                        <a href="?page=<?= $page-1 ?>&voucher_filter=<?= $voucherFilter ?>&plan_filter=<?= $planFilter ?>">« Previous</a>
                     <?php endif; ?>
 
-                    <?php for($p=1; $p<=$totalPages; $p++): ?>
-                        <a href="?page=<?= $p ?>" class="<?= $p == $page ? 'active' : '' ?>"><?= $p ?></a>
+                    <?php 
+                    // Recalculate total pages based on filtered vouchers
+                    $countQuery = "SELECT COUNT(*) FROM vouchers WHERE 1=1";
+                    if ($voucherFilter === 'hotspot') {
+                        $countQuery .= " AND plan_type NOT LIKE '%pppoe%'";
+                    } elseif ($voucherFilter === 'pppoe') {
+                        $countQuery .= " AND plan_type LIKE '%pppoe%'";
+                    } elseif ($voucherFilter === 'expired') {
+                        $countQuery .= " AND expiry < NOW() AND status != 'active'";
+                    } elseif ($voucherFilter === 'online') {
+                        $countQuery .= " AND id IN (SELECT DISTINCT v.id FROM vouchers v INNER JOIN radacct r ON v.username = r.username WHERE r.acctstoptime IS NULL)";
+                    }
+                    $totalFiltered = $pdo->query($countQuery)->fetchColumn();
+                    $totalPages = ceil($totalFiltered / $perPage);
+                    
+                    for($p=1; $p<=$totalPages; $p++): ?>
+                        <a href="?page=<?= $p ?>&voucher_filter=<?= $voucherFilter ?>&plan_filter=<?= $planFilter ?>" class="<?= $p == $page ? 'active' : '' ?>"><?= $p ?></a>
                     <?php endfor; ?>
 
                     <?php if($page < $totalPages): ?>
-                        <a href="?page=<?= $page+1 ?>">Next »</a>
+                        <a href="?page=<?= $page+1 ?>&voucher_filter=<?= $voucherFilter ?>&plan_filter=<?= $planFilter ?>">Next »</a>
                     <?php endif; ?>
                 </div>
             </div>

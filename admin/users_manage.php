@@ -59,10 +59,55 @@ if (isset($_GET['toggle'])) {
 // -----------------------------------------
 $search = $_GET['search'] ?? '';
 $sort   = $_GET['sort'] ?? 'desc'; 
+$filter = $_GET['filter'] ?? 'all'; // New filter parameter
 $page   = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 
 $perPage = 20;
 $offset  = ($page - 1) * $perPage;
+
+// -----------------------------------------
+// Get statistics for tabs
+// -----------------------------------------
+// Total users
+$totalUsersStmt = $pdo->query("SELECT COUNT(*) FROM users");
+$totalUsers = $totalUsersStmt->fetchColumn();
+
+// Hotspot users (users with vouchers)
+$hotspotStmt = $pdo->query("SELECT COUNT(DISTINCT u.id) FROM users u INNER JOIN vouchers v ON u.phone = v.phone");
+$hotspotUsers = $hotspotStmt->fetchColumn();
+
+// PPPoE users (assuming role = 'pppoe' or you can adjust this)
+$pppoeStmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'pppoe'");
+$pppoeUsers = $pppoeStmt->fetchColumn();
+
+// Expired users (users whose latest voucher has expired)
+$expiredStmt = $pdo->query("
+    SELECT COUNT(DISTINCT u.id) 
+    FROM users u 
+    INNER JOIN (
+        SELECT phone, MAX(id) as latest_id 
+        FROM vouchers 
+        GROUP BY phone
+    ) latest ON u.phone = latest.phone
+    INNER JOIN vouchers v ON latest.latest_id = v.id
+    WHERE v.expiry < NOW() AND v.status != 'active'
+");
+$expiredUsers = $expiredStmt->fetchColumn();
+
+// Online users (users with active session)
+$onlineStmt = $pdo->query("
+    SELECT COUNT(DISTINCT u.id) 
+    FROM users u 
+    INNER JOIN (
+        SELECT phone, MAX(id) as latest_id 
+        FROM vouchers 
+        GROUP BY phone
+    ) latest ON u.phone = latest.phone
+    INNER JOIN vouchers v ON latest.latest_id = v.id
+    INNER JOIN radacct r ON v.username = r.username 
+    WHERE r.acctstoptime IS NULL
+");
+$onlineUsers = $onlineStmt->fetchColumn();
 
 // -----------------------------------------
 // Build Base Queries (NAMED PARAMETERS ONLY)
@@ -71,6 +116,23 @@ $query       = "SELECT id, name, phone, role, status, voucher_id, created_at FRO
 $countQuery  = "SELECT COUNT(*) FROM users WHERE 1=1";
 $params      = [];
 $countParams = [];
+
+// -----------------------------------------
+// Apply Filter
+// -----------------------------------------
+if ($filter === 'hotspot') {
+    $query      .= " AND id IN (SELECT DISTINCT u.id FROM users u INNER JOIN vouchers v ON u.phone = v.phone)";
+    $countQuery .= " AND id IN (SELECT DISTINCT u.id FROM users u INNER JOIN vouchers v ON u.phone = v.phone)";
+} elseif ($filter === 'pppoe') {
+    $query      .= " AND role = 'pppoe'";
+    $countQuery .= " AND role = 'pppoe'";
+} elseif ($filter === 'expired') {
+    $query      .= " AND id IN (SELECT DISTINCT u.id FROM users u INNER JOIN (SELECT phone, MAX(id) as latest_id FROM vouchers GROUP BY phone) latest ON u.phone = latest.phone INNER JOIN vouchers v ON latest.latest_id = v.id WHERE v.expiry < NOW() AND v.status != 'active')";
+    $countQuery .= " AND id IN (SELECT DISTINCT u.id FROM users u INNER JOIN (SELECT phone, MAX(id) as latest_id FROM vouchers GROUP BY phone) latest ON u.phone = latest.phone INNER JOIN vouchers v ON latest.latest_id = v.id WHERE v.expiry < NOW() AND v.status != 'active')";
+} elseif ($filter === 'online') {
+    $query      .= " AND id IN (SELECT DISTINCT u.id FROM users u INNER JOIN (SELECT phone, MAX(id) as latest_id FROM vouchers GROUP BY phone) latest ON u.phone = latest.phone INNER JOIN vouchers v ON latest.latest_id = v.id INNER JOIN radacct r ON v.username = r.username WHERE r.acctstoptime IS NULL)";
+    $countQuery .= " AND id IN (SELECT DISTINCT u.id FROM users u INNER JOIN (SELECT phone, MAX(id) as latest_id FROM vouchers GROUP BY phone) latest ON u.phone = latest.phone INNER JOIN vouchers v ON latest.latest_id = v.id INNER JOIN radacct r ON v.username = r.username WHERE r.acctstoptime IS NULL)";
+}
 
 // -----------------------------------------
 // Search
@@ -225,6 +287,71 @@ $totalPages = ceil($totalRows / $perPage);
     .pagination a:hover {
         background-color: #ddd;
     }
+    
+    /* Clickable row style */
+    tbody tr {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    tbody tr:hover {
+        background-color: #f0f7ff;
+    }
+    
+    /* Tabs styling */
+    .user-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+        background: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+        overflow: hidden;
+    }
+    
+    .user-tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 15px 25px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        text-decoration: none;
+        color: #666;
+        font-weight: 500;
+        font-size: 15px;
+        transition: all 0.3s;
+        cursor: pointer;
+        margin-bottom: -2px;
+    }
+    
+    .user-tab:hover {
+        background: #e3f2fd;
+    }
+    
+    .user-tab.active {
+        background: white;
+        color: var(--secondary);
+        border-bottom: 3px solid var(--secondary);
+    }
+    
+    .tab-icon {
+        font-size: 16px;
+    }
+    
+    .tab-count {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.1);
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .user-tab.active .tab-count {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
 </style>
 </head>
 <body>
@@ -232,10 +359,47 @@ $totalPages = ceil($totalRows / $perPage);
 
 <div class="main-content">
   <h1>Manage Users</h1>
-
+  
   <div class="router-dashboard">
+    <h2>Users</h2>
+    <p style="color: #666; margin-bottom: 20px;">View and manage all registered users. Click on any user to view detailed information.</p>
+
+  <!-- User Tabs -->
+  <div class="user-tabs">
+      <a href="?filter=all&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>" 
+         class="user-tab <?= $filter === 'all' ? 'active' : '' ?>">
+          <span class="tab-icon">👥</span>
+          <span>All Users</span>
+          <span class="tab-count"><?= $totalUsers ?></span>
+      </a>
+      <a href="?filter=hotspot&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>" 
+         class="user-tab <?= $filter === 'hotspot' ? 'active' : '' ?>">
+          <span class="tab-icon">📡</span>
+          <span>Hotspot</span>
+          <span class="tab-count"><?= $hotspotUsers ?></span>
+      </a>
+      <a href="?filter=pppoe&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>" 
+         class="user-tab <?= $filter === 'pppoe' ? 'active' : '' ?>">
+          <span class="tab-icon">🔗</span>
+          <span>PPPoE</span>
+          <span class="tab-count"><?= $pppoeUsers ?></span>
+      </a>
+      <a href="?filter=expired&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>" 
+         class="user-tab <?= $filter === 'expired' ? 'active' : '' ?>">
+          <span class="tab-icon">⏰</span>
+          <span>Expired</span>
+          <span class="tab-count"><?= $expiredUsers ?></span>
+      </a>
+      <a href="?filter=online&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>" 
+         class="user-tab <?= $filter === 'online' ? 'active' : '' ?>">
+          <span class="tab-icon">🟢</span>
+          <span>Online</span>
+          <span class="tab-count"><?= $onlineUsers ?></span>
+      </a>
+  </div>
 
   <form method="get" class="search-filter-grid">
+      <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
       <input type="text" name="search" placeholder="Search name or phone" value="<?= htmlspecialchars($search) ?>">
       <select name="sort">
           <option value="desc" <?= $sort==='desc'?'selected':'' ?>>Newest First</option>
@@ -254,7 +418,6 @@ $totalPages = ceil($totalRows / $perPage);
       <th>Status</th>
       <th>Expiry</th>
       <th>Last Online</th>
-      <th>Actions</th>
   </tr>
   </thead>
   <tbody>
@@ -328,7 +491,7 @@ $totalPages = ceil($totalRows / $perPage);
 
   ?>
 
-  <tr>
+  <tr onclick="window.location.href='user_detail.php?id=<?= $userId ?>'">
       <td><?= $i++; ?></td>
       <td><span class="name-badge"><?= htmlspecialchars($row['name']); ?></span></td>
       <td><?= htmlspecialchars($row['phone']); ?></td>
@@ -336,10 +499,6 @@ $totalPages = ceil($totalRows / $perPage);
       <td><span class="status-badge <?= ($row['status']==='active')?'status-active':'status-inactive' ?>"><?= ucfirst($row['status']) ?></span></td>
       <td><?= $expiryText ?></td>
       <td><?= $lastOnlineText ?></td>
-      <td>
-          <a href="?toggle=<?= (int)$row['id'] ?>" class="btn-sm toggle"><?= ($row['status']==='active')?'Deactivate':'Activate' ?></a>
-          <a href="?delete=<?= (int)$row['id'] ?>" class="btn-sm delete" onclick="return confirm('Delete this user?');">Delete</a>
-      </td>
   </tr>
   <?php endforeach; ?>
   </tbody>
@@ -348,16 +507,16 @@ $totalPages = ceil($totalRows / $perPage);
   <!-- Pagination links -->
   <div class="pagination">
     <?php if($page > 1): ?>
-        <a href="?page=<?= $page-1 ?>&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>">« Previous</a>
+        <a href="?page=<?= $page-1 ?>&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>&filter=<?= $filter ?>">« Previous</a>
     <?php endif; ?>
 
     <?php for($p=1;$p<=$totalPages;$p++): ?>
-        <a href="?page=<?= $p ?>&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>" 
+        <a href="?page=<?= $p ?>&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>&filter=<?= $filter ?>" 
         class="<?= $p == $page ? 'active' : '' ?>"><?= $p ?></a>
     <?php endfor; ?>
 
     <?php if($page < $totalPages): ?>
-        <a href="?page=<?= $page+1 ?>&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>">Next »</a>
+        <a href="?page=<?= $page+1 ?>&search=<?= htmlspecialchars($search) ?>&sort=<?= $sort ?>&filter=<?= $filter ?>">Next »</a>
     <?php endif; ?>
     </div>
 
