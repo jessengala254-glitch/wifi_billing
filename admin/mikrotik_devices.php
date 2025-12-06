@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../inc/config.php';
 require_once __DIR__ . '/../inc/functions.php';
-require_once __DIR__ . '/../inc/mikrotik.php';
+require_once __DIR__ . '/../inc/routeros_api.class.php';
 
 // Load DB
 $config = require __DIR__ . '/../inc/config.php';
@@ -27,25 +27,27 @@ $routers = [];
 foreach ($nas_list as $n) {
     $online = ping($n['nasname']);
     $cpu = $mem = 0;
+    $canConnect = false;
 
     if ($online) {
         $API = new RouterosAPI();
-        if ($API->connect($n['nasname'], $config['mikrotik']['user'], $config['mikrotik']['pass'], $config['mikrotik']['port'])) {
+        $canConnect = $API->connect($n['nasname'], $config['mikrotik']['user'], $config['mikrotik']['pass'], $config['mikrotik']['port']);
+        
+        if ($canConnect) {
             $sys = $API->comm('/system/resource/print');
 
             if (isset($sys[0])) {
-                // CPU
+                // CPU load (can be 0 if router is idle)
                 if (isset($sys[0]['cpu-load'])) {
-                    $cpu = $sys[0]['cpu-load'];
-                } elseif (isset($sys[0]['cpu'])) {
-                    $cpu = $sys[0]['cpu'];
+                    $cpu = (int)$sys[0]['cpu-load'];
                 }
 
-                // Free memory in MB
-                if (isset($sys[0]['free-memory'])) {
-                    $mem = round($sys[0]['free-memory'] / 1024 / 1024, 2);
-                } elseif (isset($sys[0]['free-memory-mb'])) {
-                    $mem = $sys[0]['free-memory-mb'];
+                // Memory - calculate percentage used
+                if (isset($sys[0]['total-memory']) && isset($sys[0]['free-memory'])) {
+                    $totalMem = $sys[0]['total-memory'];
+                    $freeMem = $sys[0]['free-memory'];
+                    $usedMem = $totalMem - $freeMem;
+                    $mem = round(($usedMem / $totalMem) * 100, 2);
                 }
             }
 
@@ -61,7 +63,7 @@ foreach ($nas_list as $n) {
         'provisioning' => $n['type'], 
         'winbox' => 'winbox://'.$n['nasname'],
         'secret' => $n['secret'], 
-        'online' => $online ? 'Online' : 'Offline',
+        'online' => $online ? ($canConnect ? 'Online' : 'Auth Failed') : 'Offline',
         'cpu' => $cpu,
         'memory' => $mem
     ];
@@ -77,37 +79,6 @@ foreach ($nas_list as $n) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="admin_style.css">
 <title>MikroTik Routers Dashboard</title>
-<style>
-.outer-board { max-width:1200px; margin:auto; background:#fff; border-radius:10px; padding:20px; margin-bottom: 30px; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
-.search-bar { margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;}
-.search-bar input { width:300px; padding:5px 10px; border-radius:5px; border:1px solid #ccc;}
-
-.status-online { color: green; font-weight:bold; }
-.status-offline { color: red; font-weight:bold; }
-.cpu-bar, .memory-bar { height:10px; border-radius:5px; background:#e0e0e0; position:relative; width:100px; display:inline-block; margin-right:5px; }
-.cpu-fill, .memory-fill { height:100%; border-radius:5px; background:#4caf50; position:absolute; top:0; left:0; }
-.remote-link a { color:#2196f3; text-decoration:none; font-weight:bold; }
-.add-btn { padding:8px 15px; background:#4caf50; color:#fff; border:none; border-radius:5px; cursor:pointer; margin-bottom:10px; } 
-.btn-sm {
-    padding: 5px 10px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-size: 0.85em;
-    margin-right: 5px;
-    display: inline-block;
-}
-
-.btn-sm.edit {
-    background-color: #4caf50;
-    color: #fff;
-}
-
-.btn-sm.delete {
-    background-color: #f44336;
-    color: #fff;
-}
-
-</style>
 </head>
 <body>
 <?php include 'sidebar.php'; ?>
@@ -136,8 +107,8 @@ foreach ($nas_list as $n) {
     <tbody>
     <?php foreach($routers as $r): ?>
         <tr>
-            <td><?= htmlspecialchars($r['ip']) ?></td>
-            <td><?= htmlspecialchars($r['name']) ?></td>
+            <td><span class="ip-badge"><?= htmlspecialchars($r['ip']) ?></span></td>
+            <td><span class="board-badge"><?= htmlspecialchars($r['name']) ?></span></td>
             <td><?= htmlspecialchars($r['provisioning'] ?? 'N/A') ?></td>
             <td>
                 <div class="cpu-bar">
@@ -151,16 +122,16 @@ foreach ($nas_list as $n) {
                 </div>
                 <?= $r['memory'] ?> MB
             </td>
-            <td class="<?= $r['online']=='Online'?'status-online':'status-offline' ?>"><?= $r['online'] ?></td>
+            <td>
+                <span class="status-badge <?= $r['online']=='Online'?'status-active':'status-expired' ?>"><?= $r['online'] ?></span>
+            </td>
             <td class="remote-link"><a href="<?= $r['winbox'] ?>">Winbox</a></td>
             <td><?= htmlspecialchars($r['secret']) ?></td>
             <td>
                 <a href="edit_router.php?id=<?= $r['id'] ?>" class="btn-sm edit">Edit</a>
-                <!-- <a href="delete_router.php?id=<?= $r['id'] ?>" class="btn-sm delete" onclick="return confirm('Delete this router?');">Delete</a> -->
-                 <a href="delete_router.php?id=<?= $row['id']; ?>" 
+                <a href="delete_router.php?id=<?= $r['id'] ?>" 
                     onclick="return confirm('Are you sure you want to delete this router?');"
                     class="delete-btn">Delete</a>
-
             </td>
 
         </tr>

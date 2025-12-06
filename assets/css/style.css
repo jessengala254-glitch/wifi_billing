@@ -7,11 +7,18 @@
 
 :root {
     --primary: #fff;
+    --primary-green: #006837;
+    --gradient-start: #006837;
+    --gradient-end: #28a745;
     --secondary: #28a745;
     --light: #FFF8E1;
     --dark: #0a0a0a;
     --text: #333;
     --hover-bg: #F5E5D8;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body{
@@ -29,12 +36,13 @@ body{
 
 /* Navbar */
 .navbar {
-  background: #0a0a0a;
+  background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+  box-shadow: var(--shadow-md);
   position: sticky;
   top: 0;
   z-index: 999;
+  backdrop-filter: blur(10px);
 }
 
 .container {
@@ -68,10 +76,27 @@ body{
 
 /* Navigation Links */
 nav a {
-  margin: 0 10px;
+  margin: 0 15px;
   color: #fff;
   text-decoration: none;
   font-weight: 500;
+  transition: var(--transition);
+  position: relative;
+}
+
+nav a::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  transition: var(--transition);
+}
+
+nav a:hover::after {
+  width: 100%;
 }
 
 nav a:hover {
@@ -79,24 +104,43 @@ nav a:hover {
 }
 
 .btn-primary{
-    background:#28a745;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
     color:#fff;
-    padding:10px 20px;
-    border-radius:6px;
+    padding:12px 24px;
+    border-radius:8px;
     text-decoration:none;
-    transition:.3s;
+    transition: var(--transition);
     border:2px solid transparent;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover{
-    background:var(--primary);
-    color: var(--secondary);
-    border-color: var(--secondary);
-        
+    background:#fff;
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-outline{
-    border:2px solid #28a745;
+    border:2px solid var(--primary-green);
+    color: var(--primary-green);
+    padding:12px 24px;
+    border-radius:8px;
+    text-decoration:none;
+    transition: var(--transition);
+    background: transparent;
+    font-weight: 600;
+}
+
+.btn-outline:hover{
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    color:#fff;
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
     color:#28a745;
     padding:8px 18px;
     border-radius:6px;
@@ -272,8 +316,43 @@ main {
 
 .plan-card {
   background: #fff;
-  border: 1px solid #e6e6e6;
-  border-radius: 12px;
+  border: 2px solid #e6e6e6;
+  border-radius: 16px;
+  padding: 30px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.plan-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--gradient-end);
+}
+
+.plan-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  transform: scaleX(0);
+  transition: var(--transition);
+}
+
+.plan-card:hover::before {
+  transform: scaleX(1);
+}
+
+.plan-card.popular {
+  border-color: var(--primary-green);
+  box-shadow: var(--shadow-md);
+  background: linear-gradient(135deg, rgba(0, 104, 55, 0.02), rgba(40, 167, 69, 0.02));
+}
   padding: 30px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, .05);
   position: relative;
@@ -419,36 +498,41 @@ main {
 
 .why-card {
   background: #fff;
-  border: 1px solid #e6e6e6;
-  border-radius: 10px;
-  padding: 30px;
-  box-shadow: 0 4px 10px rgba(0,0,0,.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 2px solid #e6e6e6;
+  border-radius: 16px;
+  padding: 35px 25px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
   text-align: center;
 }
 
 .why-card:hover {
-    border-color: #28a745;
-  transform: translateY(-5px);
-  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  border-color: var(--gradient-end);
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
 }
 
 .why-card i {
-  font-size: 40px;
-  color: #28a745;
-  margin-bottom: 15px;
+  font-size: 48px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+  display: block;
 }
 
 .why-card h3 {
   font-size: 20px;
-  color: #28a745;
-  margin-bottom: 10px;
+  color: #222;
+  margin-bottom: 12px;
+  font-weight: 600;
 }
 
 .why-card p {
-  color: #555;
-  font-size: 16px;
-  line-height: 1.5;
+  color: #666;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /*footer*/

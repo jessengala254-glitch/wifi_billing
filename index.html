@@ -42,16 +42,29 @@
     font-weight: 700;
     font-size: 28px;
     color: #333;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
 }
 
-.login-logo span {
-    color: #28a745;
+.login-logo:hover {
+    transform: scale(1.05);
 }
 
 .login-logo i {
-    color: #28a745;
-    font-size: 1.2em;
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 28px;
+}
+
+.login-logo span {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .login-subtitle {
@@ -156,6 +169,32 @@
     border-left: 4px solid #28a745;
 }
 
+/* Footer Logo Gradient */
+.footer-logo {
+    font-weight: 700;
+    font-size: 24px;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.footer-logo i {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 24px;
+}
+
+.footer-logo span {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 /* Mobile responsive grid for plans */
 @media (max-width: 768px) {
     .plans-grid {
@@ -186,6 +225,38 @@
 </style>
 </head>
 <body>
+<style>
+/* Navbar Logo Gradient */
+.navbar .logo {
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 24px;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.navbar .logo:hover {
+    transform: scale(1.05);
+}
+
+.navbar .logo i {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 24px;
+}
+
+.navbar .logo span {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+</style>
 <header class="navbar">
   <div class="container nav-flex">
       <a href="index.php" class="logo">
@@ -488,11 +559,6 @@ document.getElementById('currentYear').textContent = new Date().getFullYear();
 
 // Load plans when page loads
 document.addEventListener('DOMContentLoaded', loadPlans);
-
-// Focus on username field if login form exists
-if(document.login) {
-    document.login.username.focus();
-}
 </script>
 
 </body>

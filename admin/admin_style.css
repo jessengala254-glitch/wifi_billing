@@ -668,6 +668,33 @@ body {
     gap: 10px; 
 }
 
+.topbar-left .logo {
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 22px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.topbar-left .logo:hover {
+    transform: scale(1.05);
+}
+
+.topbar-left .logo i {
+    color: white;
+    font-size: 24px;
+}
+
+.topbar-left .logo span {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 /* Hamburger */
 .hamburger {
     background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
@@ -1863,6 +1890,163 @@ td form button:hover {
 .plan-tab.active .tab-count, .voucher-tab.active .tab-count {
     background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
     color: white;
+}
+
+/* MikroTik Devices Styles */
+.ip-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    color: #1565c0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    border: 1.5px solid #90caf9;
+}
+
+.board-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+    color: #6a1b9a;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1.5px solid #ba68c8;
+}
+
+.search-bar {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.search-bar input {
+    width: 250px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 3px rgba(0, 104, 55, 0.1);
+}
+
+.status-online {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.status-offline {
+    color: #c62828;
+    font-weight: 600;
+}
+
+.cpu-bar, .memory-bar {
+    height: 10px;
+    border-radius: 5px;
+    background: #e0e0e0;
+    position: relative;
+    width: 100px;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.cpu-fill, .memory-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: var(--transition);
+}
+
+.remote-link a {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.remote-link a:hover {
+    color: var(--primary-green);
+    text-decoration: underline;
+}
+
+.add-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    color: #fff;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    font-size: 15px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.add-btn:hover {
+    background: white;
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-sm {
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    text-decoration: none !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    margin-right: 5px;
+    display: inline-block !important;
+    border: 1.5px solid !important;
+    transition: var(--transition);
+}
+
+.btn-sm.edit {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)) !important;
+    color: #fff !important;
+    border-color: var(--gradient-end) !important;
+}
+
+.btn-sm.edit:hover {
+    background: white !important;
+    color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.delete-btn {
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    text-decoration: none !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    display: inline-block !important;
+    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+    color: #fff !important;
+    border: 1.5px solid #c0392b !important;
+    transition: var(--transition);
+}
+
+.delete-btn:hover {
+    background: white !important;
+    color: #e74c3c !important;
+    border-color: #e74c3c !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
 }
 
 /*Users Manage Page Styles*/
