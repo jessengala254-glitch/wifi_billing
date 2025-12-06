@@ -24,33 +24,77 @@ $from_captive = $_GET['from_captive'] ?? false;
 <title>Purchase Plan | Leo Konnect</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="assets/css/style.css">
-<script src="https://kit.fontawesome.com/e097ce4e3c.js" crossorigin="anonymous"></script>
 </head>
-<body>
-<div class="purchase-container">
-  <h2><?= htmlspecialchars($plan['title']) ?></h2>
-  <p class="plan-price">Ksh <?= number_format($plan['price'], 2) ?></p>
+<body class="purchase-page">
 
-  <form id="payForm">
-    <input type="hidden" name="action" value="initiate">
-    <input type="hidden" name="plan_id" value="<?= $plan['id'] ?>">
-    <input type="hidden" name="return_url" value="<?= htmlspecialchars($return_url) ?>">
-    <input type="hidden" id="from_captive" value="<?= $from_captive ? '1' : '0' ?>">
+<!-- Header -->
+<header class="navbar">
+  <div class="container nav-flex">
+    <a href="index.php" class="logo">
+      <span class="icon-wifi"></span> Leo <span>Konnect</span>
+    </a>
+  </div>
+</header>
 
-    <label>Phone Number (M-Pesa)</label>
-    <input name="phone" required placeholder="07xxxxxxxx">
+<div class="purchase-wrapper">
+  <div class="purchase-container">
+    <div class="purchase-header">
+      <div class="plan-badge">Selected Plan</div>
+      <h2><?= htmlspecialchars($plan['title']) ?></h2>
+      <div class="plan-price">Ksh <?= number_format($plan['price'], 0) ?></div>
+      <p class="plan-description">Unlimited high-speed internet access</p>
+    </div>
 
-    <label>IP Address (optional)</label>
-    <input name="ip" value="<?= $_SERVER['REMOTE_ADDR'] ?>">
+    <form id="payForm" class="payment-form">
+      <input type="hidden" name="action" value="initiate">
+      <input type="hidden" name="plan_id" value="<?= $plan['id'] ?>">
+      <input type="hidden" name="return_url" value="<?= htmlspecialchars($return_url) ?>">
+      <input type="hidden" name="ip" id="userIp" value="<?= $_SERVER['REMOTE_ADDR'] ?>">
+      <input type="hidden" name="mac" id="userMac" value="">
+      <input type="hidden" id="from_captive" value="<?= $from_captive ? '1' : '0' ?>">
 
-    <label>MAC Address (optional)</label>
-    <input name="mac" placeholder="AA:BB:CC:DD:EE:FF">
+      <div class="form-group">
+        <label>
+          <span class="icon-phone"></span>
+          M-Pesa Phone Number
+        </label>
+        <input 
+          type="tel" 
+          name="phone" 
+          required 
+          placeholder="07xxxxxxxx" 
+          pattern="[0-9]{10}"
+          maxlength="10"
+          class="phone-input"
+        >
+        <small>Enter your M-Pesa number to receive STK push</small>
+      </div>
 
-    <button type="submit">Pay Ksh <?= number_format($plan['price'], 2) ?></button>
-  </form>
+      <div class="payment-summary">
+        <div class="summary-row">
+          <span>Plan Price</span>
+          <span class="amount">Ksh <?= number_format($plan['price'], 0) ?></span>
+        </div>
+        <div class="summary-row total">
+          <span>Total Amount</span>
+          <span class="amount">Ksh <?= number_format($plan['price'], 0) ?></span>
+        </div>
+      </div>
 
-  <div id="status" style="margin-top:20px;"></div>
-  <div id="voucher" style="margin-top:20px; font-weight:bold; white-space: pre-line;"></div>
+      <button type="submit" class="btn-payment">
+        <span class="icon-wallet"></span>
+        Pay Ksh <?= number_format($plan['price'], 0) ?> via M-Pesa
+      </button>
+    </form>
+
+    <div id="status" class="status-message"></div>
+    <div id="voucher" class="voucher-info"></div>
+
+    <div class="purchase-footer">
+      <p><span class="icon-shield"></span> Secure payment powered by M-Pesa</p>
+      <p><span class="icon-support"></span> Need help? Contact support</p>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -59,24 +103,37 @@ const statusDiv = document.getElementById('status');
 const voucherDiv = document.getElementById('voucher');
 const fromCaptive = document.getElementById('from_captive').value === '1';
 
+// Auto-detect user's MAC address (if available from network info)
+async function detectUserInfo() {
+    // IP is already set from PHP
+    // MAC address detection would require backend integration with MikroTik
+    // For now, we'll let the backend handle MAC detection when processing payment
+}
+
+detectUserInfo();
+
 payForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    statusDiv.innerText = "Initiating payment...";
-    voucherDiv.innerText = "";
+    
+    statusDiv.className = "status-message loading";
+    statusDiv.innerHTML = '<div class="spinner"></div> <span>Initiating payment...</span>';
+    voucherDiv.innerHTML = "";
 
     try {
         const formData = new FormData(payForm);
-        const res = await fetch('../leokonnect/api/payments.php', { method: 'POST', body: formData });
+        const res = await fetch('api/payments.php', { method: 'POST', body: formData });
         const data = await res.json();
 
         // Check for errors
         if (data.error) {
-            statusDiv.innerText = "❌ Error: " + data.error;
+            statusDiv.className = "status-message error";
+            statusDiv.innerHTML = `<span class="icon-shield"></span> <strong>Error:</strong> ${data.error}`;
             return;
         }
 
         if (!data || !data.payment_id) {
-            statusDiv.innerText = "Could not start payment. Try again.";
+            statusDiv.className = "status-message error";
+            statusDiv.innerHTML = '<span class="icon-shield"></span> Could not start payment. Please try again.';
             return;
         }
 
@@ -85,17 +142,41 @@ payForm.addEventListener('submit', async (e) => {
 
         // Check if using SmartPay (STK push) or mock
         if (data.gateway === 'SmartPay') {
-            statusDiv.innerText = "📱 STK push sent to your phone. Please enter your M-Pesa PIN to complete payment.";
+            statusDiv.className = "status-message info";
+            statusDiv.innerHTML = '<div class="spinner"></div> <span><strong>STK push sent!</strong><br>Please check your phone and enter your M-Pesa PIN</span>';
             
             // Poll for payment confirmation
             const poll = setInterval(async () => {
-                const checkRes = await fetch(`../leokonnect/api/check_payment.php?payment_id=${paymentId}`);
+                const checkRes = await fetch(`api/check_payment.php?payment_id=${paymentId}`);
                 const checkData = await checkRes.json();
 
                 if (checkData.status === 'success') {
                     clearInterval(poll);
-                    statusDiv.innerText = "✅ Payment successful!";
-                    voucherDiv.innerText = `Username: ${checkData.username}\nPassword: ${checkData.password}\nValid until: ${checkData.expires}\n\n📱 Use these credentials to login to the WiFi network.`;
+                    statusDiv.className = "status-message success";
+                    statusDiv.innerHTML = '<span class="icon-rocket"></span> <strong>Payment Successful!</strong>';
+                    
+                    voucherDiv.className = "voucher-info show";
+                    voucherDiv.innerHTML = `
+                        <div class="voucher-card">
+                            <h3><span class="icon-lock"></span> Your WiFi Credentials</h3>
+                            <div class="credential-row">
+                                <span class="label">Username:</span>
+                                <span class="value">${checkData.username}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="label">Password:</span>
+                                <span class="value">${checkData.password}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="label">Valid Until:</span>
+                                <span class="value">${checkData.expires}</span>
+                            </div>
+                            <p class="voucher-note">
+                                <span class="icon-support"></span> 
+                                Use these credentials to login to the WiFi network
+                            </p>
+                        </div>
+                    `;
                     
                     // If coming from captive portal, redirect after 5 seconds
                     if (fromCaptive) {
@@ -105,30 +186,56 @@ payForm.addEventListener('submit', async (e) => {
                     }
                 } else if (checkData.status === 'failed') {
                     clearInterval(poll);
-                    statusDiv.innerText = "❌ Payment failed. Please try again.";
+                    statusDiv.className = "status-message error";
+                    statusDiv.innerHTML = '<span class="icon-shield"></span> <strong>Payment failed.</strong> Please try again.';
                 } else {
-                    statusDiv.innerText = "⏳ Waiting for payment confirmation... (Enter M-Pesa PIN on your phone)";
+                    statusDiv.className = "status-message info";
+                    statusDiv.innerHTML = '<div class="spinner"></div> <span>Waiting for payment confirmation...<br><small>Please enter your M-Pesa PIN on your phone</small></span>';
                 }
             }, 3000); // Check every 3 seconds
 
             // Stop polling after 2 minutes
             setTimeout(() => {
                 clearInterval(poll);
-                if (!voucherDiv.innerText) {
-                    statusDiv.innerText = "⏱️ Payment timeout. Please check your M-Pesa messages or try again.";
+                if (!voucherDiv.innerHTML) {
+                    statusDiv.className = "status-message warning";
+                    statusDiv.innerHTML = '<span class="icon-clock"></span> <strong>Payment timeout.</strong> Please check your M-Pesa messages or try again.';
                 }
             }, 120000);
 
         } else if (data.gateway === 'MOCK') {
             // Mock payment - instant success
-            statusDiv.innerText = "✅ Payment successful! (Test Mode)";
+            statusDiv.className = "status-message success";
+            statusDiv.innerHTML = '<span class="icon-rocket"></span> <strong>Payment Successful!</strong> <small>(Test Mode)</small>';
+            
             if (data.voucher) {
                 // Handle both new voucher and topped-up voucher response formats
                 const username = data.voucher.username || (data.voucher.voucher && data.voucher.voucher.username);
                 const password = data.voucher.password || (data.voucher.voucher && data.voucher.voucher.password);
                 const expiry = data.voucher.new_expiry || data.voucher.expiry || (data.voucher.voucher && data.voucher.voucher.expiry);
                 
-                voucherDiv.innerText = `Username: ${username}\nPassword: ${password}\nValid until: ${expiry}\n\n📱 Use these credentials to login to the WiFi network.`;
+                voucherDiv.className = "voucher-info show";
+                voucherDiv.innerHTML = `
+                    <div class="voucher-card">
+                        <h3><span class="icon-lock"></span> Your WiFi Credentials</h3>
+                        <div class="credential-row">
+                            <span class="label">Username:</span>
+                            <span class="value">${username}</span>
+                        </div>
+                        <div class="credential-row">
+                            <span class="label">Password:</span>
+                            <span class="value">${password}</span>
+                        </div>
+                        <div class="credential-row">
+                            <span class="label">Valid Until:</span>
+                            <span class="value">${expiry}</span>
+                        </div>
+                        <p class="voucher-note">
+                            <span class="icon-support"></span> 
+                            Use these credentials to login to the WiFi network
+                        </p>
+                    </div>
+                `;
                 
                 if (fromCaptive) {
                     setTimeout(() => {
@@ -139,7 +246,8 @@ payForm.addEventListener('submit', async (e) => {
         }
 
     } catch (err) {
-        statusDiv.innerText = "❌ Payment error: " + err.message;
+        statusDiv.className = "status-message error";
+        statusDiv.innerHTML = `<span class="icon-shield"></span> <strong>Payment error:</strong> ${err.message}`;
     }
 });
 </script>

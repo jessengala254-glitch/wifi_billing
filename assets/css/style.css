@@ -383,30 +383,22 @@ main {
 }
 
 .plan-icon {
-  background: #e9f8ee;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  margin: 0 auto 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 15px;
-  transition: background 0.3s, transform 0.3s;
 }
 
 .plan-icon i {
-  color: #28a745;
   font-size: 26px;
   transition: transform 0.3s;
 }
 
 .plan-card:hover .plan-icon {
-  background: #28a745;
   transform: scale(1.1);
 }
 
 .plan-card:hover .plan-icon i {
-  color: #fff;
   transform: rotate(10deg);
 }
 
@@ -1016,6 +1008,820 @@ main {
     .auth-message a:hover {
       text-decoration: underline;
     }
+
+/* ============================================
+   ICON STYLES FOR MIKROTIK CAPTIVE PORTAL
+   ============================================ */
+
+/* Fallback icon styles for MikroTik captive portal */
+[class^="icon-"] {
+    display: inline-block;
+    font-style: normal;
+}
+
+[class^="icon-"]::before {
+    margin-right: 5px;
+}
+
+/* SVG WiFi icon with gradient */
+.icon-wifi::before {
+    content: "";
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><defs><linearGradient id="wifiGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:%23006837"/><stop offset="100%" style="stop-color:%2300c853"/></linearGradient></defs><path fill="url(%23wifiGrad)" d="M54.2 202.9C123.2 136.7 216.8 96 320 96s196.8 40.7 265.8 106.9c12.8 12.2 33 11.8 45.2-.9s11.8-33-.9-45.2C549.7 79.5 440.4 32 320 32S90.3 79.5 9.8 156.7C-2.9 169-3.3 189.2 8.9 202s32.5 13.2 45.2 .9zM320 256c56.8 0 108.6 21.1 148.2 56c13.3 11.7 33.5 10.4 45.2-2.8s10.4-33.5-2.8-45.2C459.8 219.2 393 192 320 192s-139.8 27.2-190.5 72c-13.3 11.7-14.5 31.9-2.8 45.2s31.9 14.5 45.2 2.8c39.5-34.9 91.3-56 148.2-56zm64 160a64 64 0 1 0 -128 0 64 64 0 1 0 128 0z"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    vertical-align: middle;
+}
+
+/* SVG Clock icon with gradient for plan durations */
+.icon-clock::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="clockGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:%23006837"/><stop offset="100%" style="stop-color:%2300c853"/></linearGradient></defs><path fill="url(%23clockGrad)" d="M256 0a256 256 0 1 1 0 512A256 256 0 1 1 256 0zM232 120V256c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+.icon-bolt::before { content: "⚡"; }
+.icon-wallet::before { content: "💰"; }
+.icon-people::before { content: "👥"; }
+.icon-signal::before { content: "📡"; }
+.icon-support::before { content: "🎧"; }
+.icon-shield::before { content: "🛡️"; }
+.icon-rocket::before { content: "🚀"; }
+.icon-lock::before { content: "🔒"; }
+.icon-facebook::before { content: "📘"; }
+.icon-twitter::before { content: "🐦"; }
+.icon-instagram::before { content: "📷"; }
+.icon-map::before { content: "📍"; }
+.icon-phone::before { content: "📞"; }
+.icon-email::before { content: "✉️"; }
+
+/* Navbar and logo icons - prevent gradient from affecting emojis */
+.navbar .logo [class^="icon-"],
+.login-logo [class^="icon-"],
+.footer-logo [class^="icon-"] {
+    background: none !important;
+    -webkit-background-clip: initial !important;
+    -webkit-text-fill-color: initial !important;
+    background-clip: initial !important;
+}
+
+/* Why card icons need to be larger and block */
+.why-card [class^="icon-"]::before {
+    display: block;
+    font-size: 3em;
+    margin: 0 auto 20px;
+}
+
+/* ============================================
+   LOGIN SECTION STYLES
+   ============================================ */
+
+.login-section {
+    padding: 60px 20px;
+    background: linear-gradient(135deg, #006837, #00c853);
+    margin-top: -5px;
+}
+
+.login-container {
+    background: white;
+    padding: 30px 25px;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    max-width: 370px;
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.login-header {
+    margin-bottom: 25px;
+}
+
+.login-logo {
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 28px;
+    color: #333;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.login-logo:hover {
+    transform: scale(1.05);
+}
+
+.login-logo i {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 28px;
+}
+
+.login-logo span {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.login-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.login-form-group {
+    margin-bottom: 14px;
+    text-align: left;
+}
+
+.login-form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.login-form-group input[type="text"],
+.login-form-group input[type="password"] {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: 'Poppins', sans-serif;
+    transition: border-color 0.3s ease;
+}
+
+.login-form-group input[type="text"]:focus,
+.login-form-group input[type="password"]:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+}
+
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #006837, #00c853);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-top: 10px;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 104, 55, 0.3);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+.login-error-message {
+    background: #fee;
+    color: #c33;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    display: none;
+}
+
+.login-error-message.show {
+    display: block;
+}
+
+.login-help-text {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    font-size: 13px;
+    color: #999;
+}
+
+.login-help-text a {
+    color: #28a745;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-help-text a:hover {
+    text-decoration: underline;
+}
+
+.login-info-box {
+    background: #f0f8f5;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    font-size: 13px;
+    color: #555;
+    border-left: 4px solid #28a745;
+}
+
+/* ============================================
+   NAVBAR & FOOTER LOGO GRADIENTS
+   ============================================ */
+
+/* Navbar Logo Gradient */
+.navbar .logo {
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 24px;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.navbar .logo:hover {
+    transform: scale(1.05);
+}
+
+.navbar .logo i {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 24px;
+}
+
+.navbar .logo span {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Footer Logo Gradient */
+.footer-logo {
+    font-weight: 700;
+    font-size: 24px;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.footer-logo i {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 24px;
+}
+
+.footer-logo span {
+    background: linear-gradient(135deg, #006837, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+
+/* ============================================
+   PURCHASE MODAL STYLES
+   ============================================ */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: white;
+    margin: 2% auto;
+    border-radius: 20px;
+    max-width: 600px;
+    width: 90%;
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+    animation: slideDown 0.3s ease;
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-close {
+    color: white;
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #006837, #00c853);
+    color: white;
+    padding: 40px 30px;
+    text-align: center;
+    border-radius: 20px 20px 0 0;
+    position: relative;
+}
+
+.modal .plan-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+
+.modal-header h2 {
+    font-size: 28px;
+    margin: 10px 0;
+    font-weight: 700;
+    color: white;
+}
+
+.modal .plan-price {
+    font-size: 42px;
+    font-weight: 800;
+    margin: 15px 0;
+    color: white;
+}
+
+.modal .plan-description {
+    font-size: 15px;
+    opacity: 0.95;
+    margin-top: 10px;
+    color: white;
+}
+
+/* Mobile responsive for modal */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 5% auto;
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .modal-header {
+        padding: 30px 20px;
+    }
+    
+    .modal-header h2 {
+        font-size: 22px;
+    }
+    
+    .modal .plan-price {
+        font-size: 32px;
+    }
+    
+    .modal-close {
+        right: 15px;
+        top: 15px;
+        font-size: 28px;
+        width: 35px;
+        height: 35px;
+    }
+}
+
+/* ============================================
+   PURCHASE PAGE STYLES
+   ============================================ */
+
+.purchase-page {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    min-height: 100vh;
+}
+
+.purchase-wrapper {
+    padding: 40px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.purchase-container {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.purchase-header {
+    background: linear-gradient(135deg, #006837, #00c853);
+    color: white;
+    padding: 40px 30px;
+    text-align: center;
+}
+
+.plan-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+
+.purchase-header h2 {
+    font-size: 32px;
+    margin: 10px 0;
+    font-weight: 700;
+}
+
+.plan-price {
+    font-size: 48px;
+    font-weight: 800;
+    margin: 15px 0;
+    color: white;
+}
+
+.plan-description {
+    font-size: 16px;
+    opacity: 0.95;
+    margin-top: 10px;
+}
+
+.payment-form {
+    padding: 30px;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.form-group label [class^="icon-"] {
+    margin-right: 8px;
+    color: #28a745;
+}
+
+.phone-input {
+    width: 100%;
+    padding: 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.phone-input:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.1);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #666;
+}
+
+.payment-summary {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 25px 0;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    font-size: 15px;
+    color: #666;
+}
+
+.summary-row.total {
+    border-top: 2px solid #dee2e6;
+    margin-top: 10px;
+    padding-top: 15px;
+    font-weight: 700;
+    font-size: 18px;
+    color: #333;
+}
+
+.summary-row .amount {
+    font-weight: 700;
+    color: #28a745;
+}
+
+.btn-payment {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, #006837, #00c853);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-payment:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 104, 55, 0.3);
+}
+
+.btn-payment:active {
+    transform: translateY(0);
+}
+
+.status-message {
+    margin-top: 25px;
+    padding: 18px 20px;
+    border-radius: 12px;
+    font-size: 15px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-message.loading,
+.status-message.info,
+.status-message.success,
+.status-message.error,
+.status-message.warning {
+    display: flex;
+}
+
+.status-message.loading {
+    background: #e3f2fd;
+    color: #1976d2;
+    border-left: 4px solid #1976d2;
+}
+
+.status-message.info {
+    background: #e3f2fd;
+    color: #1976d2;
+    border-left: 4px solid #1976d2;
+}
+
+.status-message.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-left: 4px solid #2e7d32;
+}
+
+.status-message.error {
+    background: #ffebee;
+    color: #c62828;
+    border-left: 4px solid #c62828;
+}
+
+.status-message.warning {
+    background: #fff3e0;
+    color: #ef6c00;
+    border-left: 4px solid #ef6c00;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0,0,0,0.1);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.voucher-info {
+    margin-top: 25px;
+    display: none;
+}
+
+.voucher-info.show {
+    display: block;
+}
+
+.voucher-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #28a745;
+    border-radius: 15px;
+    padding: 25px;
+}
+
+.voucher-card h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.credential-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.credential-row .label {
+    font-weight: 600;
+    color: #666;
+    font-size: 14px;
+}
+
+.credential-row .value {
+    font-weight: 700;
+    color: #28a745;
+    font-size: 16px;
+    font-family: monospace;
+}
+
+.voucher-note {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #dee2e6;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.voucher-note.success-note {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    border: 2px solid #4caf50;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    color: #2e7d32;
+    font-weight: 600;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.purchase-footer {
+    background: #f8f9fa;
+    padding: 25px 30px;
+    text-align: center;
+    border-top: 1px solid #dee2e6;
+}
+
+.purchase-footer p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Mobile responsive for purchase page */
+@media (max-width: 768px) {
+    .purchase-wrapper {
+        padding: 20px 15px;
+    }
+    
+    .purchase-header {
+        padding: 30px 20px;
+    }
+    
+    .purchase-header h2 {
+        font-size: 24px;
+    }
+    
+    .plan-price {
+        font-size: 36px;
+    }
+    
+    .payment-form {
+        padding: 20px;
+    }
+    
+    .credential-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Mobile responsive grid for plans */
+@media (max-width: 768px) {
+    .plans-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+    }
+    
+    .plan-card {
+        padding: 20px 15px !important;
+    }
+    
+    .plan-card h3 {
+        font-size: 16px !important;
+    }
+    
+    .plan-card .price {
+        font-size: 22px !important;
+    }
+    
+    .plan-card ul {
+        font-size: 12px !important;
+    }
+    
+    .plan-icon i {
+        font-size: 2em !important;
+    }
+}
+
+   
+
+
+   
+
+
+   
+
 
    
 

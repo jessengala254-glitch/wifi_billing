@@ -7,260 +7,12 @@
 <meta http-equiv="pragma" content="no-cache" />
 <meta http-equiv="expires" content="-1" />
 <link rel="stylesheet" href="assets/css/style.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://kit.fontawesome.com/e097ce4e3c.js" crossorigin="anonymous"></script>
-<!-- Font Awesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-<style>
-/* Login Section Styles */
-.login-section {
-    padding: 60px 20px;
-    background: linear-gradient(135deg, #006837, #00c853);
-    margin-top: -5px;
-}
-
-.login-container {
-    background: white;
-    padding: 30px 25px;
-    border-radius: 15px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    max-width: 370px;
-    width: 100%;
-    margin: 0 auto;
-    text-align: center;
-}
-
-.login-header {
-    margin-bottom: 25px;
-}
-
-.login-logo {
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 28px;
-    color: #333;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-}
-
-.login-logo:hover {
-    transform: scale(1.05);
-}
-
-.login-logo i {
-    background: linear-gradient(135deg, #006837, #00c853);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-size: 28px;
-}
-
-.login-logo span {
-    background: linear-gradient(135deg, #006837, #00c853);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.login-subtitle {
-    font-size: 14px;
-    color: #666;
-    margin-top: 10px;
-}
-
-.login-form-group {
-    margin-bottom: 14px;
-    text-align: left;
-}
-
-.login-form-group label {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 8px;
-}
-
-.login-form-group input[type="text"],
-.login-form-group input[type="password"] {
-    width: 100%;
-    padding: 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 15px;
-    font-family: 'Poppins', sans-serif;
-    transition: border-color 0.3s ease;
-}
-
-.login-form-group input[type="text"]:focus,
-.login-form-group input[type="password"]:focus {
-    outline: none;
-    border-color: #28a745;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
-}
-
-.login-btn {
-    width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, #006837, #00c853);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    margin-top: 10px;
-}
-
-.login-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 104, 55, 0.3);
-}
-
-.login-btn:active {
-    transform: translateY(0);
-}
-
-.login-error-message {
-    background: #fee;
-    color: #c33;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-size: 13px;
-    display: none;
-}
-
-.login-error-message.show {
-    display: block;
-}
-
-.login-help-text {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
-    font-size: 13px;
-    color: #999;
-}
-
-.login-help-text a {
-    color: #28a745;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.login-help-text a:hover {
-    text-decoration: underline;
-}
-
-.login-info-box {
-    background: #f0f8f5;
-    padding: 15px;
-    border-radius: 8px;
-    margin-top: 20px;
-    font-size: 13px;
-    color: #555;
-    border-left: 4px solid #28a745;
-}
-
-/* Footer Logo Gradient */
-.footer-logo {
-    font-weight: 700;
-    font-size: 24px;
-    color: white;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 15px;
-}
-
-.footer-logo i {
-    background: linear-gradient(135deg, #006837, #00c853);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-size: 24px;
-}
-
-.footer-logo span {
-    background: linear-gradient(135deg, #006837, #00c853);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-/* Mobile responsive grid for plans */
-@media (max-width: 768px) {
-    .plans-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 15px !important;
-    }
-    
-    .plan-card {
-        padding: 20px 15px !important;
-    }
-    
-    .plan-card h3 {
-        font-size: 16px !important;
-    }
-    
-    .plan-card .price {
-        font-size: 22px !important;
-    }
-    
-    .plan-card ul {
-        font-size: 12px !important;
-    }
-    
-    .plan-icon i {
-        font-size: 2em !important;
-    }
-}
-</style>
 </head>
 <body>
-<style>
-/* Navbar Logo Gradient */
-.navbar .logo {
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 24px;
-    color: white;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-}
-
-.navbar .logo:hover {
-    transform: scale(1.05);
-}
-
-.navbar .logo i {
-    background: linear-gradient(135deg, #006837, #00c853);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-size: 24px;
-}
-
-.navbar .logo span {
-    background: linear-gradient(135deg, #006837, #00c853);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-</style>
 <header class="navbar">
   <div class="container nav-flex">
       <a href="index.php" class="logo">
-        <i class="fas fa-wifi"></i> Leo <span>Konnect</span>
+        <span class="icon-wifi"></span> Leo <span>Konnect</span>
       </a>
     <nav>
       <a href="plans.php">Plans</a>
@@ -280,8 +32,8 @@
     <p>Pay-as-you-go WiFi starting from just <span>Ksh 10</span> per hour.<br>
        Stay connected without breaking the bank.</p>
     <div class="hero-buttons">
-      <a href="plans.php" class="btn-primary">View Plans</a>
-      <a href="register.php" class="btn-outline">Get Connected</a>
+      <a href="#plans" class="btn-primary">View Plans</a>
+      <a href="#login" class="btn-outline">Get Connected</a>
     </div>
     <div class="hero-features">
       <span>⚡ High-Speed Mbps</span>
@@ -293,7 +45,7 @@
 </section>
 
 <!-- Login Section -->
-<section class="login-section">
+<section id="login" class="login-section">
   <!-- MikroTik CHAP Authentication -->
   $(if chap-id)
       <form name="sendin" action="$(link-login-only)" method="post" style="display:none;">
@@ -317,7 +69,7 @@
   <div class="login-container">
       <div class="login-header">
           <a href="#" class="login-logo">
-              <i class="fas fa-wifi"></i> Leo <span>Konnect</span>
+              <span class="icon-wifi"></span> Leo <span>Konnect</span>
           </a>
           <div class="login-subtitle">WiFi Access Login</div>
       </div>
@@ -363,7 +115,7 @@
   <div class="plans-grid" id="plansGrid">
     <!-- Plans will be loaded here dynamically -->
     <div class="loading-spinner" style="grid-column: 1/-1; text-align: center; padding: 40px;">
-      <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #28a745;"></i>
+      <div style="font-size: 2em; color: #28a745;">⏳</div>
       <p style="margin-top: 10px; color: #666;">Loading plans...</p>
     </div>
   </div>
@@ -375,37 +127,37 @@
 
   <div class="why-grid">
     <div class="why-card">
-      <i class="fas fa-bolt"></i>
+      <span class="icon-bolt"></span>
       <h3>Instant Activation</h3>
       <p>Get connected immediately after payment. No waiting, no setup fees.</p>
     </div>
 
     <div class="why-card">
-      <i class="fas fa-wallet"></i>
+      <span class="icon-wallet"></span>
       <h3>Affordable Pricing</h3>
       <p>Pay only for what you use plans start from just Ksh 10 per hour.</p>
     </div>
 
     <div class="why-card">
-      <i class="fas fa-solid fa-people-group"></i>
+      <span class="icon-people"></span>
       <h3>Community First</h3>
       <p>Bringing reliable and affordable internet connectivity to everyone.</p>
     </div>
 
     <div class="why-card">
-      <i class="fas fa-wifi"></i>
+      <span class="icon-signal"></span>
       <h3>Reliable Coverage</h3>
       <p>Stay connected wherever you are with our strong and stable network.</p>
     </div>
 
     <div class="why-card">
-      <i class="fas fa-headset"></i>
+      <span class="icon-support"></span>
       <h3>24/7 Support</h3>
       <p>Our customer support team is always available to help you anytime.</p>
     </div>
 
     <div class="why-card">
-      <i class="fas fa-shield-alt"></i>
+      <span class="icon-shield"></span>
       <h3>Secure Connection</h3>
       <p>Enjoy safe, encrypted, and uninterrupted internet access always.</p>
     </div>
@@ -417,13 +169,13 @@
   <div class="footer-container">
       <div class="footer-column brand"> 
           <h2 class="footer-logo">
-              <i class="fas fa-wifi"></i> Leo <span>Konnect</span></h2>
+              <span class="icon-wifi"></span> Leo <span>Konnect</span></h2>
       <p>Making internet accessible and affordable for everyone in Kenya.</p>
-      <div class="social-icons">
-        <a href="#"><i class="fab fa-facebook-f"></i></a>
-        <a href="#"><i class="fab fa-x-twitter"></i></a>
-        <a href="#"><i class="fab fa-instagram"></i></a>
-      </div>
+      <!-- <div class="social-icons">
+        <a href="#"><span class="icon-facebook"></span></a>
+        <a href="#"><span class="icon-twitter"></span></a>
+        <a href="#"><span class="icon-instagram"></span></a>
+      </div> -->
     </div>
 
     <div class="footer-column">
@@ -449,9 +201,9 @@
     <div class="footer-column contact">
       <h3>Contact Us</h3>
       <ul>
-        <li><i class="fas fa-map-marker-alt"></i> Malindi, Kenya</li>
-        <li><i class="fas fa-phone"></i> +254 700 000 000</li>
-        <li><i class="fas fa-envelope"></i> info@leokonnect.co.ke</li>
+        <li><span class="icon-map"></span> Malindi, Kenya</li>
+        <li><span class="icon-phone"></span> +254 700 000 000</li>
+        <li><span class="icon-email"></span> info@leokonnect.co.ke</li>
       </ul>
     </div>
 
@@ -461,6 +213,69 @@
     <p>&copy; <span id="currentYear"></span> Leo Konnect. All rights reserved.</p>
   </div>
 </footer>
+
+<!-- Purchase Modal -->
+<div id="purchaseModal" class="modal">
+  <div class="modal-content">
+    <span class="modal-close">&times;</span>
+    
+    <div class="modal-header">
+      <div class="plan-badge">Selected Plan</div>
+      <h2 id="modalPlanTitle"></h2>
+      <div class="plan-price" id="modalPlanPrice"></div>
+      <p class="plan-description">Unlimited high-speed internet access</p>
+    </div>
+
+    <form id="payForm" class="payment-form">
+      <input type="hidden" name="action" value="initiate">
+      <input type="hidden" name="plan_id" id="modalPlanId">
+      <input type="hidden" name="return_url" id="modalReturnUrl">
+      <input type="hidden" name="ip" id="userIp">
+      <input type="hidden" name="mac" id="userMac" value="">
+
+      <div class="form-group">
+        <label>
+          <span class="icon-phone"></span>
+          M-Pesa Phone Number
+        </label>
+        <input 
+          type="tel" 
+          name="phone" 
+          required 
+          placeholder="07xxxxxxxx" 
+          pattern="[0-9]{10}"
+          maxlength="10"
+          class="phone-input"
+        >
+        <small>Enter your M-Pesa number to receive STK push</small>
+      </div>
+
+      <div class="payment-summary">
+        <div class="summary-row">
+          <span>Plan Price</span>
+          <span class="amount" id="summaryPrice"></span>
+        </div>
+        <div class="summary-row total">
+          <span>Total Amount</span>
+          <span class="amount" id="summaryTotal"></span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-payment">
+        <span class="icon-wallet"></span>
+        <span id="payButtonText">Pay via M-Pesa</span>
+      </button>
+    </form>
+
+    <div id="status" class="status-message"></div>
+    <div id="voucher" class="voucher-info"></div>
+
+    <div class="purchase-footer">
+      <p><span class="icon-shield"></span> Secure payment powered by M-Pesa</p>
+      <p><span class="icon-support"></span> Need help? Contact support</p>
+    </div>
+  </div>
+</div>
 
 <script>
 // Get URL parameters
@@ -475,15 +290,15 @@ function getUrlParams() {
 // Convert minutes to duration text and icon
 function getDurationInfo(minutes) {
     if (minutes >= 43200) { // 30 days
-        return { text: '1 month', icon: 'fa-calendar-alt' };
+        return { text: '1 month', icon: 'icon-clock' };
     } else if (minutes >= 10080) { // 7 days
-        return { text: '1 week', icon: 'fa-calendar-week' };
+        return { text: '1 week', icon: 'icon-clock' };
     } else if (minutes >= 1440) { // 1 day
-        return { text: '1 day', icon: 'fa-sun' };
+        return { text: '1 day', icon: 'icon-clock' };
     } else if (minutes >= 60) { // 1 hour
-        return { text: '1 hour', icon: 'fa-clock' };
+        return { text: '1 hour', icon: 'icon-clock' };
     } else {
-        return { text: minutes + ' minutes', icon: 'fa-stopwatch' };
+        return { text: minutes + ' minutes', icon: 'icon-clock' };
     }
 }
 
@@ -518,16 +333,11 @@ async function loadPlans() {
                 const planCard = document.createElement('div');
                 planCard.className = 'plan-card' + (isPopular ? ' popular' : '');
                 
-                let purchaseUrl = `http://192.168.10.68/leokonnect/purchase.php?plan_id=${plan.id}`;
-                if (urlParams.from_captive == 1) {
-                    purchaseUrl += `&from_captive=1&return_url=${encodeURIComponent(urlParams.return_url)}`;
-                }
-                
                 planCard.innerHTML = `
                     ${isPopular ? '<div class="badge">Popular</div>' : ''}
                     
                     <div class="plan-icon">
-                        <i class="fas ${duration.icon}"></i>
+                        <i class="${duration.icon}" style="font-size: 3em;"></i>
                     </div>
                     
                     <h3>${escapeHtml(plan.title)}</h3>
@@ -540,7 +350,7 @@ async function loadPlans() {
                         <li>Multiple device support</li>
                     </ul>
                     
-                    <a href="${purchaseUrl}" class="btn-primary">Choose Plan</a>
+                    <button class="btn-primary" onclick="openPurchaseModal(${plan.id}, '${escapeHtml(plan.title)}', ${plan.price})">Choose Plan</button>
                 `;
                 
                 plansGrid.appendChild(planCard);
@@ -554,8 +364,224 @@ async function loadPlans() {
     }
 }
 
+// Open purchase modal
+function openPurchaseModal(planId, planTitle, planPrice) {
+    const modal = document.getElementById('purchaseModal');
+    const urlParams = getUrlParams();
+    
+    // Set plan details
+    document.getElementById('modalPlanTitle').textContent = planTitle;
+    document.getElementById('modalPlanPrice').textContent = 'Ksh ' + formatNumber(planPrice);
+    document.getElementById('modalPlanId').value = planId;
+    document.getElementById('summaryPrice').textContent = 'Ksh ' + formatNumber(planPrice);
+    document.getElementById('summaryTotal').textContent = 'Ksh ' + formatNumber(planPrice);
+    document.getElementById('payButtonText').textContent = 'Pay Ksh ' + formatNumber(planPrice) + ' via M-Pesa';
+    document.getElementById('modalReturnUrl').value = urlParams.return_url;
+    
+    // Set user IP
+    fetch('https://api.ipify.org?format=json')
+        .then(res => res.json())
+        .then(data => document.getElementById('userIp').value = data.ip)
+        .catch(() => document.getElementById('userIp').value = '');
+    
+    // Reset form and messages
+    document.getElementById('payForm').reset();
+    document.getElementById('status').className = 'status-message';
+    document.getElementById('status').innerHTML = '';
+    document.getElementById('voucher').className = 'voucher-info';
+    document.getElementById('voucher').innerHTML = '';
+    
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+// Close modal
+function closePurchaseModal() {
+    const modal = document.getElementById('purchaseModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Modal event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('purchaseModal');
+    const closeBtn = document.querySelector('.modal-close');
+    
+    // Close button
+    closeBtn.onclick = closePurchaseModal;
+    
+    // Click outside modal
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closePurchaseModal();
+        }
+    };
+    
+    // Payment form submission
+    const payForm = document.getElementById('payForm');
+    const statusDiv = document.getElementById('status');
+    const voucherDiv = document.getElementById('voucher');
+    const urlParams = getUrlParams();
+    const fromCaptive = urlParams.from_captive == 1;
+
+    payForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        statusDiv.className = "status-message loading";
+        statusDiv.innerHTML = '<div class="spinner"></div> <span>Initiating payment...</span>';
+        voucherDiv.innerHTML = "";
+
+        try {
+            const formData = new FormData(payForm);
+            const res = await fetch('api/payments.php', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            // Check for errors
+            if (data.error) {
+                statusDiv.className = "status-message error";
+                statusDiv.innerHTML = `<span class="icon-shield"></span> <strong>Error:</strong> ${data.error}`;
+                return;
+            }
+
+            if (!data || !data.payment_id) {
+                statusDiv.className = "status-message error";
+                statusDiv.innerHTML = '<span class="icon-shield"></span> Could not start payment. Please try again.';
+                return;
+            }
+
+            const paymentId = data.payment_id;
+            const returnUrl = formData.get('return_url');
+
+            // Check if using SmartPay (STK push) or mock
+            if (data.gateway === 'SmartPay') {
+                statusDiv.className = "status-message info";
+                statusDiv.innerHTML = '<div class="spinner"></div> <span><strong>STK push sent!</strong><br>Please check your phone and enter your M-Pesa PIN</span>';
+                
+                // Poll for payment confirmation
+                const poll = setInterval(async () => {
+                    const checkRes = await fetch(`api/check_payment.php?payment_id=${paymentId}`);
+                    const checkData = await checkRes.json();
+
+                    if (checkData.status === 'success') {
+                        clearInterval(poll);
+                        statusDiv.className = "status-message success";
+                        statusDiv.innerHTML = '<span class="icon-rocket"></span> <strong>Payment Successful!</strong>';
+                        
+                        voucherDiv.className = "voucher-info show";
+                        voucherDiv.innerHTML = `
+                            <div class="voucher-card">
+                                <h3><span class="icon-lock"></span> Your WiFi Credentials</h3>
+                                <div class="credential-row">
+                                    <span class="label">Username:</span>
+                                    <span class="value">${checkData.username}</span>
+                                </div>
+                                <div class="credential-row">
+                                    <span class="label">Password:</span>
+                                    <span class="value">${checkData.password}</span>
+                                </div>
+                                <div class="credential-row">
+                                    <span class="label">Valid Until:</span>
+                                    <span class="value">${checkData.expires}</span>
+                                </div>
+                                <p class="voucher-note">
+                                    <span class="icon-support"></span> 
+                                    Use these credentials to login to the WiFi network
+                                </p>
+                            </div>
+                        `;
+                        
+                        // If coming from captive portal, redirect after 5 seconds
+                        if (fromCaptive) {
+                            setTimeout(() => {
+                                window.location.href = returnUrl || 'http://www.google.com';
+                            }, 5000);
+                        }
+                    } else if (checkData.status === 'failed') {
+                        clearInterval(poll);
+                        statusDiv.className = "status-message error";
+                        statusDiv.innerHTML = '<span class="icon-shield"></span> <strong>Payment failed.</strong> Please try again.';
+                    } else {
+                        statusDiv.className = "status-message info";
+                        statusDiv.innerHTML = '<div class="spinner"></div> <span>Waiting for payment confirmation...<br><small>Please enter your M-Pesa PIN on your phone</small></span>';
+                    }
+                }, 3000);
+
+                // Stop polling after 2 minutes
+                setTimeout(() => {
+                    clearInterval(poll);
+                    if (!voucherDiv.innerHTML) {
+                        statusDiv.className = "status-message warning";
+                        statusDiv.innerHTML = '<span class="icon-clock"></span> <strong>Payment timeout.</strong> Please check your M-Pesa messages or try again.';
+                    }
+                }, 120000);
+
+            } else if (data.gateway === 'MOCK') {
+                // Mock payment - instant success
+                const autoAuth = data.auto_authenticated || false;
+                const successMsg = autoAuth 
+                    ? '<span class="icon-rocket"></span> <strong>Payment Successful!</strong><br><small>You are now connected to WiFi automatically!</small>'
+                    : '<span class="icon-rocket"></span> <strong>Payment Successful!</strong> <small>(Test Mode)</small>';
+                
+                statusDiv.className = "status-message success";
+                statusDiv.innerHTML = successMsg;
+                
+                if (data.voucher) {
+                    const username = data.voucher.username || (data.voucher.voucher && data.voucher.voucher.username);
+                    const password = data.voucher.password || (data.voucher.voucher && data.voucher.voucher.password);
+                    const expiry = data.voucher.new_expiry || data.voucher.expiry || (data.voucher.voucher && data.voucher.voucher.expiry);
+                    
+                    const authNote = autoAuth
+                        ? '<p class="voucher-note success-note"><span class="icon-rocket"></span> You are automatically connected! No manual login needed.<br>Use these credentials as backup if you get disconnected.</p>'
+                        : '<p class="voucher-note"><span class="icon-support"></span> Use these credentials to login to the WiFi network</p>';
+                    
+                    voucherDiv.className = "voucher-info show";
+                    voucherDiv.innerHTML = `
+                        <div class="voucher-card">
+                            <h3><span class="icon-lock"></span> Your WiFi Credentials</h3>
+                            ${authNote}
+                            <div class="credential-row">
+                                <span class="label">Username:</span>
+                                <span class="value">${username}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="label">Password:</span>
+                                <span class="value">${password}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="label">Valid Until:</span>
+                                <span class="value">${expiry}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (fromCaptive && autoAuth) {
+                        // Redirect faster if auto-authenticated
+                        setTimeout(() => {
+                            window.location.href = returnUrl || 'http://www.google.com';
+                        }, 2000);
+                    } else if (fromCaptive) {
+                        setTimeout(() => {
+                            window.location.href = returnUrl || 'http://www.google.com';
+                        }, 3000);
+                    }
+                }
+            }
+
+        } catch (err) {
+            statusDiv.className = "status-message error";
+            statusDiv.innerHTML = `<span class="icon-shield"></span> <strong>Payment error:</strong> ${err.message}`;
+        }
+    });
+});
+
 // Set current year
 document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+// Remove hash from URL on page load to prevent auto-scroll
+if (window.location.hash) {
+    history.replaceState(null, null, ' ');
+}
 
 // Load plans when page loads
 document.addEventListener('DOMContentLoaded', loadPlans);

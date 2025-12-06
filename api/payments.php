@@ -16,6 +16,8 @@ try {
     // Validate input
     $phone = $_POST['phone'] ?? null;
     $plan_id = $_POST['plan_id'] ?? null;
+    $ip_address = $_POST['ip'] ?? $_SERVER['REMOTE_ADDR'] ?? null;
+    $mac_address = $_POST['mac'] ?? null;
 
     if (!$phone || !$plan_id) {
         http_response_code(400);
@@ -34,7 +36,7 @@ try {
         exit;
     }
 
-    // Create payment record (user_id is optional for guest payments)
+    // Create payment record with IP/MAC for binding
     $user_id = $_SESSION['user_id'] ?? null;
     $stmt = $pdo->prepare("INSERT INTO payments (user_id, phone, plan_id, amount, status, created_at) VALUES (?, ?, ?, ?, 'pending', NOW())");
     $stmt->execute([$user_id, $phone, $plan_id, $plan['price']]);
@@ -128,7 +130,10 @@ try {
     $radius_payload = json_encode([
         "type" => "create_voucher",
         "plan_id" => $plan_id,
-        "phone" => $phone
+        "phone" => $phone,
+        "ip_address" => $ip_address,
+        "mac_address" => $mac_address,
+        "auto_authenticate" => true  // Enable automatic RADIUS authentication
     ]);
     
     $ch = curl_init("http://127.0.0.1/leokonnect/inc/radius_api.php");
@@ -160,7 +165,8 @@ try {
         "payment_id" => $payment_id,
         "message" => "Mock payment successful (SmartPayPesa unavailable)",
         "gateway" => "MOCK",
-        "voucher" => $voucher_data
+        "voucher" => $voucher_data,
+        "auto_authenticated" => $voucher_data['auto_authenticated'] ?? false
     ]);
     exit;
 

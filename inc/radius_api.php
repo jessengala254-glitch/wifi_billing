@@ -211,6 +211,16 @@ if ($type === 'create_voucher') {
         respond(['error' => 'phone is required'], 400);
     }
 
+    // --- Get IP and MAC for binding and auto-authentication ---
+    $ip_address = $payload['ip_address'] ?? $_SERVER['REMOTE_ADDR'] ?? null;
+    $mac_address = $payload['mac_address'] ?? null;
+    $auto_authenticate = $payload['auto_authenticate'] ?? false;
+    
+    // Sanitize MAC address
+    if ($mac_address) {
+        $mac_address = sanitize_mac($mac_address);
+    }
+
     // --- Validate plan ---
     $plan_identifier = $payload['plan_id'] ?? $payload['plan_title'] ?? null;
     if (!$plan_identifier) {
@@ -348,10 +358,10 @@ if ($type === 'create_voucher') {
     //$radius_expire_format = date("d M Y Y H:i:s", strtotime($expiry));
     $radius_expire_format = date("d M Y H:i:s", strtotime($expiry));
 
-    // --- Insert voucher ---
+    // --- Insert voucher with IP and MAC binding ---
     $stmt = $pdo->prepare("
         INSERT INTO vouchers (username, password, plan_type, expiry, rate_limit, status, created_at, plan_id, phone, mac_address, framed_ip)
-        VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?, NULL, NULL)
+        VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?, ?, ?)
     ");
     $stmt->execute([
         $voucher_username,
@@ -360,7 +370,9 @@ if ($type === 'create_voucher') {
         $expiry,
         $rate_limit,
         $plan['id'],
-        $customer_phone
+        $customer_phone,
+        $mac_address,
+        $ip_address
     ]);
     $voucher_id = $pdo->lastInsertId();
 
@@ -430,9 +442,58 @@ if ($type === 'create_voucher') {
     $pdo->prepare("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Mikrotik-Rate-Limit', ':=', ?)")
         ->execute([$voucher_username, $rate_limit]);
     
-    // 5. Framed-Pool (tells MikroTik to assign IP from hotspot pool)
+    // 5. MAC Address Binding (if provided) - allows automatic authentication
+    if ($mac_address) {
+        $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Calling-Station-Id', ':=', ?)")
+            ->execute([$voucher_username, $mac_address]);
+    }
+    
+    // 6. IP Address Binding (if provided)
+    if ($ip_address) {
+        $pdo->prepare("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Framed-IP-Address', ':=', ?)")
+            ->execute([$voucher_username, $ip_address]);
+    }
+    
+    // 7. Framed-Pool (tells MikroTik to assign IP from hotspot pool)
     // $pdo->prepare("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Framed-Pool', ':=', ?)")
     //     ->execute([$voucher_username, 'hotspot']);
+
+    // --- Automatic RADIUS Authentication (if enabled and MAC available) ---
+    $auto_authenticated = false;
+    if ($auto_authenticate && $mac_address && $ip_address) {
+        try {
+            // Try to connect to MikroTik and create active session
+            $API = new RouterosAPI();
+            if ($API->connect($ROUTER_IP, $ROUTER_USER, $ROUTER_PASS)) {
+                // Add user to MikroTik hotspot active list (bypass login)
+                $API->comm("/ip/hotspot/active/add", [
+                    "user" => $voucher_username,
+                    "address" => $ip_address,
+                    "mac-address" => $mac_address,
+                    "comment" => "Auto-authenticated via payment"
+                ]);
+                
+                // Set bandwidth queue for the user
+                setBandwidthQueue($ROUTER_IP, $ROUTER_USER, $ROUTER_PASS, $ip_address, $rate_limit);
+                
+                $API->disconnect();
+                $auto_authenticated = true;
+                
+                // Log successful auto-authentication
+                $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip, mac, framed_ip) 
+                    VALUES (?, 'auto_authenticate', 'ok', 'user_auto_connected', ?, ?, ?)")
+                    ->execute([$voucher_username, $ip_address, $mac_address, $ip_address]);
+                    
+            } else {
+                error_log("Failed to connect to MikroTik for auto-authentication");
+            }
+        } catch (Exception $e) {
+            error_log("Auto-authentication failed: " . $e->getMessage());
+            $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) 
+                VALUES (?, 'auto_authenticate', 'error', ?)")
+                ->execute([$voucher_username, 'auto_auth_failed: ' . $e->getMessage()]);
+        }
+    }
 
     // --- Create session entry ---
     $sessionInsert = $pdo->prepare("
@@ -469,6 +530,7 @@ if ($type === 'create_voucher') {
     // --- Return response ---
     respond([
         'result' => 'ok',
+        'user_id' => $user_id,
         'voucher' => [
             'username'   => $voucher_username,
             'password'   => $voucher_password_plain,
@@ -481,7 +543,10 @@ if ($type === 'create_voucher') {
             'hotspot_password' => $voucher_password_plain,
             'started_at'       => $start_time,
             'expires_at'       => $expiry
-        ]
+        ],
+        'auto_authenticated' => $auto_authenticated,
+        'mac_address' => $mac_address,
+        'ip_address' => $ip_address
     ]);
 }
 
