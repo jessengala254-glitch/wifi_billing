@@ -135,154 +135,6 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="utf-8">
     <title>Plans Manage</title>
     <link rel="stylesheet" href="admin_style.css">
-    <style>
-        .status-active { color: green; font-weight: bold; }
-        .status-expired { color: red; font-weight: bold; }
-        
-        .username-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        
-        .status-badge.status-active {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-        
-        .status-badge.status-expired {
-            background: #ffebee;
-            color: #c62828;
-        }
-        
-        .rate-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        
-        .rate-5m {
-            background: #e3f2fd;
-            color: #1565c0;
-        }
-        
-        .rate-10m {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-        
-        .rate-20m {
-            background: #fff3e0;
-            color: #e65100;
-        }
-        
-        .rate-other {
-            background: #f3e5f5;
-            color: #6a1b9a;
-        }
-        
-        .pagination {
-            margin-top: 15px;
-            text-align: center;
-        }
-        
-        .pagination a {
-            display: inline-block;
-            padding: 6px 12px;
-            margin: 0 2px;
-            border: 1px solid #ccc;
-            text-decoration: none;
-            color: #333;
-            border-radius: 4px;
-        }
-        
-        .pagination a.active {
-            background-color: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
-        }
-        
-        .pagination a:hover {
-            background-color: #ddd;
-        }
-        
-        /* Tabs styling - reused from users_manage */
-        .plan-tabs, .voucher-tabs {
-            display: flex;
-            gap: 0;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-            background: #f8f9fa;
-            border-radius: 8px 8px 0 0;
-            overflow: hidden;
-        }
-        
-        .plan-tab, .voucher-tab {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 15px 25px;
-            background: none;
-            border: none;
-            border-bottom: 3px solid transparent;
-            text-decoration: none;
-            color: #666;
-            font-weight: 500;
-            font-size: 15px;
-            transition: all 0.3s;
-            cursor: pointer;
-            margin-bottom: -2px;
-        }
-        
-        .plan-tab:hover, .voucher-tab:hover {
-            background: #e3f2fd;
-        }
-        
-        .plan-tab.active, .voucher-tab.active {
-            background: white;
-            color: var(--secondary);
-            border-bottom: 3px solid var(--secondary);
-        }
-        
-        .tab-icon {
-            font-size: 16px;
-        }
-        
-        .tab-count {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            background: rgba(0,0,0,0.1);
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .plan-tab.active .tab-count, .voucher-tab.active .tab-count {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        
-        .section-description {
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-    </style>
-
 </head>
 <body>
 <?php include 'sidebar.php'; ?>
@@ -290,7 +142,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <h1>Manage Plans</h1>
         <div class="outer-board">
             <h2>Current Plans</h2>
-            <p class="section-description">Manage your WiFi subscription plans. Configure pricing, duration, and plan details.</p>
+            <p class="chart-description">Manage your WiFi subscription plans. Configure pricing, duration, and plan details.</p>
             
             <!-- Plan Tabs -->
             <div class="plan-tabs">
@@ -370,7 +222,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <div class="outer-board">
             <h2>Recent Vouchers</h2>
-            <p class="section-description">Track generated vouchers and their current status. Monitor active, expired, and online users.</p>
+            <p class="chart-description">Track generated vouchers and their current status. Monitor active, expired, and online users.</p>
             
             <!-- Voucher Tabs -->
             <div class="voucher-tabs">

@@ -147,10 +147,15 @@ $totalPages = ceil($totalLogs / $limit);
         <!-- Pagination -->
         <div class="pagination">
             <?php if ($page > 1): ?>
-                <a href="?page=<?=($page-1)?>&search=<?=urlencode($search)?>">Previous</a>
+                <a href="?page=<?=($page-1)?>&search=<?=urlencode($search)?>">« Prev</a>
             <?php endif; ?>
 
-            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+            <?php
+            // Show pages 1-5
+            $maxVisible = 5;
+            $end = min($totalPages, $maxVisible);
+            
+            for ($i = 1; $i <= $end; $i++): ?>
                 <a href="?page=<?=$i?>&search=<?=urlencode($search)?>" 
                 class="<?=($i == $page ? 'active' : '')?>">
                 <?=$i?>
@@ -158,7 +163,7 @@ $totalPages = ceil($totalLogs / $limit);
             <?php endfor; ?>
 
             <?php if ($page < $totalPages): ?>
-                <a href="?page=<?=($page+1)?>&search=<?=urlencode($search)?>">Next</a>
+                <a href="?page=<?=($page+1)?>&search=<?=urlencode($search)?>">Next »</a>
             <?php endif; ?>
         </div>
     </div>

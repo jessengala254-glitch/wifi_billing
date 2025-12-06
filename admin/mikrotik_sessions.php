@@ -21,10 +21,7 @@ $perPage = 20;
 // Pagination helper
 function renderPagination($currentPage, $totalPages, $paramName='page') {
     $html = '';
-    $maxLinks = 5; 
-    $start = max(1, $currentPage - floor($maxLinks / 2));
-    $end = min($totalPages, $start + $maxLinks - 1);
-    $start = max(1, $end - $maxLinks + 1); // adjust start if near end
+    $maxVisible = 5; // Show pages 1-5
 
     // preserve existing GET params
     $queryParams = $_GET;
@@ -32,19 +29,23 @@ function renderPagination($currentPage, $totalPages, $paramName='page') {
 
     $baseUrl = '?' . http_build_query($queryParams);
 
+    // Previous button
     if ($currentPage > 1) {
         $prevPage = $currentPage - 1;
-        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $prevPage . '">&laquo; Prev</a>';
+        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $prevPage . '">« Prev</a>';
     }
 
-    for ($i = $start; $i <= $end; $i++) {
+    // Show pages 1-5
+    $end = min($totalPages, $maxVisible);
+    for ($i = 1; $i <= $end; $i++) {
         $active = $i == $currentPage ? 'active' : '';
         $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $i . '" class="' . $active . '">' . $i . '</a>';
     }
 
+    // Next button
     if ($currentPage < $totalPages) {
         $nextPage = $currentPage + 1;
-        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $nextPage . '">Next &raquo;</a>';
+        $html .= '<a href="' . $baseUrl . '&' . $paramName . '=' . $nextPage . '">Next »</a>';
     }
 
     return $html;
@@ -271,6 +272,7 @@ try {
     <!-- Active Sessions -->
     <div id="active-sessions-table">
         <h2>Active Sessions</h2>
+        <p class="chart-description">Real-time view of currently connected users on the hotspot network with their IP and MAC addresses</p>
         <table>
             <thead>
                 <tr><th>Username</th><th>IP</th><th>MAC</th><th>Status</th><th>Action</th></tr>
@@ -312,6 +314,7 @@ try {
     <div id="recent-sessions-table">
         <div class="outer-board">
         <h2>Recent Sessions</h2>
+        <p class="chart-description">Historical log of all user sessions including data usage statistics and connection duration</p>
         <table>
             <thead>
                 <tr>
@@ -349,6 +352,7 @@ try {
     <div id="postauth-logs-table">
         <div class="outer-board">
             <h2>PostAuth Logs</h2>
+            <p class="chart-description">Authentication attempts log showing successful and failed login requests with timestamps</p>
             <table>
                 <thead><tr><th>Username</th><th>Password</th><th>Reply</th><th>Auth Time</th></tr></thead>
                 <tbody>
@@ -374,6 +378,7 @@ try {
     <!-- Users (radcheck) -->
     <div class="outer-board">
         <h2>Users (radcheck)</h2>
+        <p class="chart-description">RADIUS authentication database entries with user credentials and attribute configurations</p>
         <table>
             <thead>
                 <tr><th>Username</th><th>Attribute</th><th>Value</th></tr>
@@ -396,6 +401,7 @@ try {
     <!-- Voucher Payments -->
     <div class="outer-board">
         <h2>Voucher Payments</h2>
+        <p class="chart-description">Comprehensive voucher tracking with plan details, payment status, and expiration information</p>
         <table>
             <thead>
                 <tr><th>Username</th><th>Plan</th><th>Expiry</th><th>Status</th><th>Amount</th><th>Phone</th><th>Payment status</th><th>Date</th></tr>

@@ -350,8 +350,8 @@ if ($type === 'create_voucher') {
 
     // --- Insert voucher ---
     $stmt = $pdo->prepare("
-        INSERT INTO vouchers (username, password, plan_type, expiry, rate_limit, status, created_at, plan_id, phone)
-        VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?)
+        INSERT INTO vouchers (username, password, plan_type, expiry, rate_limit, status, created_at, plan_id, phone, mac_address, framed_ip)
+        VALUES (?, ?, ?, ?, ?, 'active', NOW(), ?, ?, NULL, NULL)
     ");
     $stmt->execute([
         $voucher_username,
@@ -364,54 +364,54 @@ if ($type === 'create_voucher') {
     ]);
     $voucher_id = $pdo->lastInsertId();
 
-    // Assign voucher to user in the vouchers table
-    $assignVoucherToUser = $pdo->prepare("UPDATE vouchers SET user_id = ? WHERE id = ?");
-    $assignVoucherToUser->execute([$user_id, $voucher_id]);
+    // --- First, check if user exists or create new user ---
+    $user_id = null;
     
-    $updUserVoucher = $pdo->prepare("UPDATE users SET voucher_id = ? WHERE id = ?");
-    $updUserVoucher->execute([$voucher_id, $user_id]);
+    // Check if user already exists by phone
+    $existingUser = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
+    $existingUser->execute([$customer_phone]);
+    $user_id = $existingUser->fetchColumn();
 
-    // --- Insert into users table (auto-create user) ---
-    try {
+    if (!$user_id) {
         // Create a new user
-        $userInsert = $pdo->prepare("
-            INSERT INTO users (name, email, phone, username, password, role, voucher_id)
-            VALUES (?, ?, ?, ?, ?, 'user', ?)
-        ");
-        $userInsert->execute([
-            $voucher_username,
-            null,
-            $customer_phone,
-            $voucher_username,
-            password_hash($voucher_password_plain, PASSWORD_DEFAULT),
-            $voucher_id
-        ]);
-
-        $user_id = $pdo->lastInsertId();
-
-    } catch (Exception $e) {
-
-        // User exists → fetch their ID
-        $existingUser = $pdo->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
-        $existingUser->execute([$customer_phone]);
-        $user_id = $existingUser->fetchColumn();
-
-        if (!$user_id) {
-            // Fail gracefully
+        try {
+            $userInsert = $pdo->prepare("
+                INSERT INTO users (name, email, phone, username, password, role, voucher_id, status)
+                VALUES (?, ?, ?, ?, ?, 'user', ?, 'active')
+            ");
+            $userInsert->execute([
+                $customer_phone, // name defaults to phone
+                null,
+                $customer_phone,
+                $voucher_username,
+                password_hash($voucher_password_plain, PASSWORD_DEFAULT),
+                $voucher_id
+            ]);
+            $user_id = $pdo->lastInsertId();
+            
+            $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message)
+                VALUES (?, 'create_voucher', 'info', ?)")
+                ->execute([$voucher_username, "new_user_created: {$customer_phone}"]);
+                
+        } catch (Exception $e) {
             $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message)
                 VALUES (?, 'create_voucher', 'error', ?)")
                 ->execute([$voucher_username, 'user_creation_failed: ' . $e->getMessage()]);
-            respond(['error' => 'Failed to create user record'], 500);
+            respond(['error' => 'Failed to create user record: ' . $e->getMessage()], 500);
         }
+    } else {
+        // User exists - just update their voucher_id
+        $updUserVoucher = $pdo->prepare("UPDATE users SET voucher_id = ?, username = ? WHERE id = ?");
+        $updUserVoucher->execute([$voucher_id, $voucher_username, $user_id]);
+        
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message)
+            VALUES (?, 'create_voucher', 'info', ?)")
+            ->execute([$voucher_username, "existing_user_updated: {$customer_phone}"]);
     }
 
-    // --- FINAL STEP: Now we know user_id, update voucher ---
+    // --- Update voucher with user_id ---
     $updVoucherUser = $pdo->prepare("UPDATE vouchers SET user_id = ? WHERE id = ?");
     $updVoucherUser->execute([$user_id, $voucher_id]);
-
-    // 🔥 NEW FIX: Update users table to point to the new voucher
-    $updUserVoucher = $pdo->prepare("UPDATE users SET voucher_id = ? WHERE id = ?");
-    $updUserVoucher->execute([$voucher_id, $user_id]);
 
     // --- Insert FreeRADIUS records ---
     // 1. Cleartext Password
@@ -558,12 +558,12 @@ if ($type === 'authorize') {
 
     if (!$allowedMac) {
         if ($mac) {
-            // bind first-login MAC
-            $pdo->prepare("UPDATE vouchers SET mac_address = ? WHERE id = ?")->execute([$mac, $v['id']]);
+            // bind first-login MAC - update vouchers table AND radcheck
+            $pdo->prepare("UPDATE vouchers SET mac_address = ?, used_at = NOW() WHERE id = ?")->execute([$mac, $v['id']]);
             $ins = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Calling-Station-Id', ':=', ?)");
             $ins->execute([$username, $mac]);
             $allowedMac = $mac;
-            $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'info', ?)")->execute([$username, 'mac_bound_first_login']);
+            $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'info', ?)")->execute([$username, "mac_bound_first_login: {$mac}"]);
         } else {
             $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'reject', ?)")->execute([$username, 'no_mac_provided']);
             respond(['result' => 'reject', 'message' => 'No MAC provided to bind']);
@@ -613,10 +613,11 @@ if ($type === 'authorize') {
         if ($rc_ip) $allowedIP = $rc_ip;
     }
     if (!$allowedIP && $framed_ip) {
-        // assign first login
-        $pdo->prepare("UPDATE vouchers SET framed_ip = ? WHERE id = ?")->execute([$framed_ip, $v['id']]);
+        // assign first login IP - update vouchers table AND radcheck
+        $pdo->prepare("UPDATE vouchers SET framed_ip = ?, used_at = NOW() WHERE id = ?")->execute([$framed_ip, $v['id']]);
         $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Framed-IP-Address', ':=', ?)")->execute([$username, $framed_ip]);
         $allowedIP = $framed_ip;
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'info', ?)")->execute([$username, "ip_bound_first_login: {$framed_ip}"]);
     } elseif ($allowedIP && $framed_ip && $allowedIP !== $framed_ip) {
         $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'reject', ?)")->execute([$username, 'ip_mismatch']);
         respond(['result' => 'reject', 'message' => 'IP binding mismatch']);
@@ -657,18 +658,6 @@ if ($type === 'authorize') {
             $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) VALUES (?, 'authorize', 'error', ?)")->execute([$username, "queue_error: " . $e->getMessage()]);
             // still accept - Router can honor Mikrotik-Rate-Limit attribute
         }
-    }
-
-    $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip, mac, framed_ip) VALUES (?, 'authorize', 'accept', ?, ?, ?, ?)")->execute([$username, 'authorized_ok', $client_ip, $mac, $framed_ip]);
-    respond(['result' => 'accept', 'reply_attributes' => $reply_attributes]);
-
-    // Save session details for disconnection later
-    if (!empty($mac) && !empty($framed_ip)) {
-        $pdo->prepare("
-            UPDATE vouchers 
-            SET mac_address = ?, framed_ip = ?, used_at = NOW()
-            WHERE id = ?
-        ")->execute([$mac, $framed_ip, $v['id']]);
     }
 
     // Convert reply_attributes into proper RADIUS reply object
@@ -783,6 +772,34 @@ if ($type === 'accounting') {
                 $mac_address,
                 $terminate
             ]);
+        }
+
+        // Update voucher with MAC and IP if not already set (from accounting data)
+        if ($mac_address !== "UNKNOWN" || $framed_ip) {
+            $voucherCheck = $pdo->prepare("SELECT mac_address, framed_ip FROM vouchers WHERE username = ? LIMIT 1");
+            $voucherCheck->execute([$username]);
+            $voucherData = $voucherCheck->fetch(PDO::FETCH_ASSOC);
+            
+            if ($voucherData) {
+                $updates = [];
+                $params = [];
+                
+                if (empty($voucherData['mac_address']) && $mac_address !== "UNKNOWN") {
+                    $updates[] = "mac_address = ?";
+                    $params[] = $mac_address;
+                }
+                
+                if (empty($voucherData['framed_ip']) && $framed_ip) {
+                    $updates[] = "framed_ip = ?";
+                    $params[] = $framed_ip;
+                }
+                
+                if (!empty($updates)) {
+                    $params[] = $username;
+                    $sql = "UPDATE vouchers SET " . implode(", ", $updates) . " WHERE username = ?";
+                    $pdo->prepare($sql)->execute($params);
+                }
+            }
         }
 
         $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message) 

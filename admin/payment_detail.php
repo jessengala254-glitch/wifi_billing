@@ -330,21 +330,41 @@ $activeTab = $_GET['tab'] ?? 'general';
         table tbody tr:hover {
             background: #f8f9fa;
         }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: white;
+            background: #28a745;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: 2px solid #28a745;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            background: white;
+            color: #28a745;
+            border: 2px solid #28a745;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
     <?php include 'sidebar.php'; ?>
 
     <div class="main-content">
+        <a href="payments_manage.php" class="back-link">← Back to Payments</a>
+        
         <!-- Payment Header -->
         <div class="payment-header">
             <div class="payment-header-top">
                 <div class="payment-info-left">
                     <h2>Payment #<?= $payment['id'] ?> Details</h2>
                     <p style="color: #666; margin: 0;">Transaction information and receipt</p>
-                </div>
-                <div class="action-buttons">
-                    <a href="payments_manage.php" class="btn btn-secondary">← Back to Payments</a>
                 </div>
             </div>
         </div>
@@ -476,19 +496,15 @@ $activeTab = $_GET['tab'] ?? 'general';
 
             <!-- User Details Tab -->
             <div class="tab-content <?= $activeTab === 'user' ? 'active' : '' ?>">
-                <?php if ($payment['user_name']): ?>
+                <?php if ($payment['user_id']): ?>
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">Name</div>
-                        <div class="info-value"><?= htmlspecialchars($payment['user_name']) ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Email</div>
-                        <div class="info-value"><?= htmlspecialchars($payment['user_email'] ?? 'N/A') ?></div>
+                        <div class="info-value"><?= htmlspecialchars($payment['user_name'] ?? 'N/A') ?></div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Phone</div>
-                        <div class="info-value"><?= htmlspecialchars($payment['user_phone']) ?></div>
+                        <div class="info-value"><?= htmlspecialchars($payment['user_phone'] ?? $payment['phone']) ?></div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Account Status</div>
@@ -642,6 +658,10 @@ $activeTab = $_GET['tab'] ?? 'general';
                     <span>Plan:</span>
                     <span><?= htmlspecialchars($payment['plan_title'] ?? 'N/A') ?></span>
                 </div>
+                <div class="receipt-row">
+                    <span>Payment Method:</span>
+                    <span><?= htmlspecialchars($payment['gateway'] ?? 'M-Pesa') ?></span>
+                </div>
                 <?php if ($payment['mpesa_receipt']): ?>
                 <div class="receipt-row">
                     <span>M-Pesa Code:</span>
@@ -683,11 +703,6 @@ $activeTab = $_GET['tab'] ?? 'general';
         function downloadReceipt() {
             // For a simple implementation, we'll just trigger print
             // In production, you might want to use a library like jsPDF
-            window.print();
-        }
-    </script>
-</body>
-</html>
             window.print();
         }
     </script>

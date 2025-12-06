@@ -124,11 +124,19 @@ try {
         ORDER BY DATE(acctstarttime)
     ")->fetchAll(PDO::FETCH_ASSOC);
  
-    // Active vouchers by plan
+    // Active vouchers by plan with filter
+    $voucherStatusFilter = $_GET['voucher_status'] ?? 'all';
+    $voucherWhereClause = "1=1";
+    if ($voucherStatusFilter === 'active') {
+        $voucherWhereClause = "status = 'active'";
+    } elseif ($voucherStatusFilter === 'expired') {
+        $voucherWhereClause = "status = 'expired'";
+    }
+    
     $activeByPlan = $pdo->query("
         SELECT plan_type, COUNT(*) AS total
         FROM vouchers
-        WHERE status = 'active'
+        WHERE {$voucherWhereClause}
         GROUP BY plan_type
         ORDER BY total DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -221,19 +229,26 @@ try {
         echo "Database error: " . $e->getMessage();
     }
 
-    // Data Usage Per User with pagination and search
+    // Data Usage Per User with pagination and filters
     $page_data_usage = max(1, (int)($_GET['page_data'] ?? 1));
     $offset_data_usage = ($page_data_usage - 1) * $perPage;
-    $search_phone = $_GET['search_phone'] ?? '';
+    $dataUsageStatusFilter = $_GET['data_status'] ?? 'all';
+    $dataUsagePlanFilter = $_GET['data_plan'] ?? 'all';
     
     try {
         // Build WHERE clause
-        $whereClause = "v.status = 'active'";
+        $whereClause = "1=1";
         $params = [];
         
-        if (!empty($search_phone)) {
-            $whereClause .= " AND u.phone LIKE ?";
-            $params[] = "%{$search_phone}%";
+        if ($dataUsageStatusFilter === 'active') {
+            $whereClause .= " AND v.status = 'active'";
+        } elseif ($dataUsageStatusFilter === 'expired') {
+            $whereClause .= " AND v.status = 'expired'";
+        }
+        
+        if ($dataUsagePlanFilter !== 'all') {
+            $whereClause .= " AND v.plan_type = ?";
+            $params[] = $dataUsagePlanFilter;
         }
         
         // Count total records
@@ -287,193 +302,63 @@ try {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Leo Konnect | Admin Dashboard</title>
 <link rel="stylesheet" href="admin_style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-    .router-dashboard { 
-        max-width:1200px; 
-        margin:auto; 
-        background:#fff; 
-        border-radius:10px; 
-        padding:20px; 
-        box-shadow:0 2px 10px rgba(0,0,0,0.1);
-    }
-  .perf-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.perf-table th, .perf-table td {
-    padding: 12px 14px;
-    border-bottom: 1px solid #ccc;
-    text-align: left;
-}
-
-.perf-table th {
-    background: #006837;
-    color: #fff;
-    font-weight: bold;
-}
-
-.perf-table tr:hover {
-    background: #f2f2f2;
-}
-
-.chart-description {
-    font-size: 15px;
-    color: #666;
-    margin: -5px 0 15px 0;
-}
-
-.retention-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.retention-header h3 {
-    margin: 0;
-}
-
-.retention-select {
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background: white;
-    cursor: pointer;
-    font-size: 13px;
-    width: 110px;
-}
-
-.username-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    background: #e8f5e9;
-    color: #006837;
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: bold;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: bold;
-}
-
-.status-active {
-    background: #e8f5e9;
-    color: green;
-}
-
-.status-expired {
-    background: #ffebee;
-    color: red;
-}
-
-.search-box {
-    margin: 20px 0;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.search-box input {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 14px;
-    width: 250px;
-}
-
-.search-box button {
-    padding: 8px 16px;
-    background: #006837;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.search-box button:hover {
-    background: #005028;
-}
-
-.search-box .clear-btn {
-    background: #666;
-}
-
-.search-box .clear-btn:hover {
-    background: #444;
-}
-
-.data-usage-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 40px;
-    margin-bottom: 10px;
-}
-
-.data-usage-header h2 {
-    margin: 0;
-}
-
-.data-usage-header form input[type="text"] {
-    width: 300px;
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    font-size: 14px;
-}
-
-</style>
 </head>
 <body>
 <?php include 'sidebar.php'; ?>
 
 <div class="main-content">
-  <!-- <h1>Welcome to Leo Konnect Admin Dashboard</h1> -->
-    <h1 style="text-align: left;"><?= htmlspecialchars($greeting . ' ' . $adminName) ?></h1>
+  <div class="dashboard-header">
+    <div>
+      <h1><?= htmlspecialchars($greeting . ', ' . $adminName) ?> 👋</h1>
+      <p class="date-time"><i class="far fa-calendar"></i> <?= date('l, F j, Y') ?> | <i class="far fa-clock"></i> <?= date('g:i A') ?></p>
+    </div>
+  </div>
 
   <div class="cards">
     <div class="card">
-      <h2><?= $totalUsers ?></h2>
-      <p>Total Users</p>
+      <i class="fas fa-users icon"></i>
+      <h2><?= number_format($totalUsers) ?></h2>
+      <p><i class="fas fa-user-check"></i> Total Users</p>
     </div>
     <div class="card">
-      <h2><?= $activeSubs ?></h2>
-      <p>Active Subscriptions</p>
+      <i class="fas fa-certificate icon"></i>
+      <h2><?= number_format($activeSubs) ?></h2>
+      <p><i class="fas fa-ticket-alt"></i> Active Subscriptions</p>
     </div>
     <div class="card">
+      <i class="fas fa-money-bill-wave icon"></i>
       <h2>Ksh <?= number_format($totalRevenue) ?></h2>
-      <p>Total Revenue</p>
+      <p><i class="fas fa-chart-line"></i> Total Revenue</p>
     </div>
     <div class="card">
-      <h2><?= $totalPlans ?></h2>
-      <p>Available Plans</p>
+      <i class="fas fa-box icon"></i>
+      <h2><?= number_format($totalPlans) ?></h2>
+      <p><i class="fas fa-layer-group"></i> Available Plans</p>
     </div>
   </div>
 
   <div class="charts-container">
     <div class="chart-card">
-      <h3>Active Vouchers by Plan</h3>
-      <p class="chart-description">Distribution of active users across different plan types</p>
+      <div class="retention-header">
+        <h3><i class="fas fa-chart-pie"></i> Vouchers by Plan</h3>
+        <select id="voucherStatusSelect" onchange="window.location.href='?voucher_status=' + this.value + '<?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['data_period']) ? '&data_period=' . htmlspecialchars($_GET['data_period']) : '' ?><?= !empty($_GET['user_reg_period']) ? '&user_reg_period=' . htmlspecialchars($_GET['user_reg_period']) : '' ?>';" class="retention-select">
+          <option value="all" <?= $voucherStatusFilter === 'all' ? 'selected' : '' ?>>All Vouchers</option>
+          <option value="active" <?= $voucherStatusFilter === 'active' ? 'selected' : '' ?>>Active Only</option>
+          <option value="expired" <?= $voucherStatusFilter === 'expired' ? 'selected' : '' ?>>Expired Only</option>
+        </select>
+      </div>
+      <p class="chart-description">Distribution of vouchers across different plans</p>
       <canvas id="planChart"></canvas>
     </div>
 
     <div class="chart-card">
       <div class="retention-header">
-        <h3>Customer Retention</h3>
+        <h3><i class="fas fa-user-plus"></i> Customer Retention</h3>
         <select id="retentionPeriodSelect" onchange="changeRetentionPeriod(this.value)" class="retention-select">
           <option value="1week" <?= $retentionPeriod === '1week' ? 'selected' : '' ?>>1 Week</option>
           <option value="14day" <?= $retentionPeriod === '14day' ? 'selected' : '' ?>>14 Days</option>
@@ -489,7 +374,7 @@ try {
 
     <div class="chart-card">
       <div class="retention-header">
-        <h3>Data Usage</h3>
+        <h3><i class="fas fa-database"></i> Data Usage</h3>
         <select id="dataPeriodSelect" onchange="window.location.href='?data_period=' + this.value + '<?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['user_reg_period']) ? '&user_reg_period=' . htmlspecialchars($_GET['user_reg_period']) : '' ?>'; " class="retention-select">
           <option value="7day" <?= $dataUsagePeriod === '7day' ? 'selected' : '' ?>>Last 7 Days</option>
           <option value="14day" <?= $dataUsagePeriod === '14day' ? 'selected' : '' ?>>Last 14 Days</option>
@@ -504,7 +389,7 @@ try {
 
     <div class="chart-card">
       <div class="retention-header">
-        <h3>User Registrations</h3>
+        <h3><i class="fas fa-user-clock"></i> User Registrations</h3>
         <select id="userRegPeriodSelect" onchange="window.location.href='?user_reg_period=' + this.value + '<?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['data_period']) ? '&data_period=' . htmlspecialchars($_GET['data_period']) : '' ?>';" class="retention-select">
           <option value="7day" <?= $userRegPeriod === '7day' ? 'selected' : '' ?>>Last 7 Days</option>
           <option value="14day" <?= $userRegPeriod === '14day' ? 'selected' : '' ?>>Last 14 Days</option>
@@ -520,26 +405,26 @@ try {
   </div>
 
   <div class="router-dashboard">
-    <h2 style="margin-top:20px;">Package Performance Comparison</h2>
+    <h2><i class="fas fa-trophy"></i> Package Performance Comparison</h2>
         <p class="chart-description">Detailed analysis of each plan's performance including user count, revenue, and data usage metrics</p>
         <table>
             <thead>
                 <tr>
-                    <th>Package</th>
-                    <th>Price (Ksh)</th>
-                    <th>Users This Month</th>
-                    <th>Monthly Revenue (Ksh)</th>
-                    <th>Avg Data Usage (GB)</th>
-                    <th>ARPU (Ksh)</th>
+                    <th><i class="fas fa-box"></i> Package</th>
+                    <th><i class="fas fa-tag"></i> Price (Ksh)</th>
+                    <th><i class="fas fa-users"></i> Users This Month</th>
+                    <th><i class="fas fa-coins"></i> Monthly Revenue (Ksh)</th>
+                    <th><i class="fas fa-chart-bar"></i> Avg Data Usage (GB)</th>
+                    <th><i class="fas fa-calculator"></i> ARPU (Ksh)</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($packagePerformance as $pkg): ?>
                 <tr>
-                    <td><?= htmlspecialchars($pkg['name']) ?></td>
+                    <td><strong><?= htmlspecialchars($pkg['name']) ?></strong></td>
                     <td><?= number_format((float)$pkg['price'],2) ?></td>
-                    <td><?= $pkg['total_users'] ?></td>
-                    <td><?= number_format($pkg['monthly_revenue'],2) ?></td>
+                    <td><?= number_format($pkg['total_users']) ?></td>
+                    <td><strong><?= number_format($pkg['monthly_revenue'],2) ?></strong></td>
                     <td><?= number_format($pkg['avg_usage_gb'],2) ?></td>
                     <td><?= number_format($pkg['arpu'],2) ?></td>
                 </tr>
@@ -548,20 +433,28 @@ try {
         </table>
     </div>
 
-    <div class="router-dashboard" style="margin-top:20px;">
-        <div class="data-usage-header">
-            <h2>Data Usage Per User</h2>
-            <form method="GET" action="">
-                <input type="text" name="search_phone" placeholder="Search by phone number..." value="<?= htmlspecialchars($search_phone) ?>" />
-                <!-- Preserve other GET parameters -->
-                <?php foreach ($_GET as $key => $value): ?>
-                    <?php if ($key !== 'search_phone' && $key !== 'page_data'): ?>
-                        <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>" />
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            </form>
+    <div class="router-dashboard">
+        <div class="retention-header">
+            <h2><i class="fas fa-signal"></i> Data Usage Per User</h2>
+            <div style="display: flex; gap: 10px;">
+                <select id="dataStatusSelect" onchange="window.location.href='?data_status=' + this.value + '&data_plan=<?= htmlspecialchars($dataUsagePlanFilter) ?><?= !empty($_GET['voucher_status']) ? '&voucher_status=' . htmlspecialchars($_GET['voucher_status']) : '' ?><?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['data_period']) ? '&data_period=' . htmlspecialchars($_GET['data_period']) : '' ?><?= !empty($_GET['user_reg_period']) ? '&user_reg_period=' . htmlspecialchars($_GET['user_reg_period']) : '' ?>';" class="retention-select">
+                    <option value="all" <?= $dataUsageStatusFilter === 'all' ? 'selected' : '' ?>>All Status</option>
+                    <option value="active" <?= $dataUsageStatusFilter === 'active' ? 'selected' : '' ?>>Active</option>
+                    <option value="expired" <?= $dataUsageStatusFilter === 'expired' ? 'selected' : '' ?>>Expired</option>
+                </select>
+                <select id="dataPlanSelect" onchange="window.location.href='?data_plan=' + this.value + '&data_status=<?= htmlspecialchars($dataUsageStatusFilter) ?><?= !empty($_GET['voucher_status']) ? '&voucher_status=' . htmlspecialchars($_GET['voucher_status']) : '' ?><?= !empty($_GET['retention_period']) ? '&retention_period=' . htmlspecialchars($_GET['retention_period']) : '' ?><?= !empty($_GET['data_period']) ? '&data_period=' . htmlspecialchars($_GET['data_period']) : '' ?><?= !empty($_GET['user_reg_period']) ? '&user_reg_period=' . htmlspecialchars($_GET['user_reg_period']) : '' ?>';" class="retention-select">
+                    <option value="all" <?= $dataUsagePlanFilter === 'all' ? 'selected' : '' ?>>All Plans</option>
+                    <?php
+                    $plansQuery = $pdo->query("SELECT DISTINCT plan_type FROM vouchers ORDER BY plan_type");
+                    while ($planRow = $plansQuery->fetch(PDO::FETCH_ASSOC)) {
+                        $selected = $dataUsagePlanFilter === $planRow['plan_type'] ? 'selected' : '';
+                        echo '<option value="' . htmlspecialchars($planRow['plan_type']) . '" ' . $selected . '>' . htmlspecialchars($planRow['plan_type']) . '</option>';
+                    }
+                    ?>
+                </select>
+            </div>
         </div>
-        <p class="chart-description">Individual data consumption breakdown for active users</p>
+        <p class="chart-description">Individual data consumption breakdown with filters</p>
         
         <table>
             <thead>
