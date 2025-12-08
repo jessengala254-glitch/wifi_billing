@@ -1,5 +1,5 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/../inc/functions.php';
@@ -266,6 +266,7 @@ try {
         // Fetch paginated data
         $dataQuery = "
             SELECT 
+                u.id,
                 v.username,
                 u.phone,
                 v.plan_type,
@@ -278,7 +279,7 @@ try {
             LEFT JOIN users u ON v.user_id = u.id
             LEFT JOIN radacct r ON r.username = v.username
             WHERE {$whereClause}
-            GROUP BY v.username, u.phone, v.plan_type, v.status, v.created_at
+            GROUP BY u.id, v.username, u.phone, v.plan_type, v.status, v.created_at
             ORDER BY total_gb DESC
             LIMIT {$perPage} OFFSET {$offset_data_usage}
         ";
@@ -472,7 +473,7 @@ try {
             <tbody>
                 <?php if(!empty($dataPerUser)): ?>
                     <?php foreach ($dataPerUser as $user): ?>
-                    <tr>
+                    <tr onclick="window.location.href='user_detail.php?id=<?= $user['id'] ?>'" style="cursor: pointer;">
                         <td><span class="username-badge"><?= htmlspecialchars($user['username']) ?></span></td>
                         <td><?= htmlspecialchars($user['phone'] ?? 'N/A') ?></td>
                         <td><?= htmlspecialchars($user['plan_type']) ?></td>
@@ -621,6 +622,38 @@ try {
         },
         options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: chartColors.text } }, y: { ticks: { color: chartColors.text, beginAtZero: true } } } }
     });
+
+    // Auto-refresh at midnight
+    let currentDate = new Date().toDateString();
+    
+    setInterval(function() {
+        const now = new Date();
+        const newDate = now.toDateString();
+        
+        // Check if date has changed (crossed midnight)
+        if (newDate !== currentDate) {
+            currentDate = newDate;
+            console.log('Midnight crossed - refreshing dashboard data...');
+            location.reload();
+        }
+    }, 60000); 
+
+    // Also check every second around midnight (23:59:00 - 00:01:00)
+    setInterval(function() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        
+        // More frequent checking around midnight
+        if ((hours === 23 && minutes >= 59) || (hours === 0 && minutes <= 1)) {
+            const newDate = now.toDateString();
+            if (newDate !== currentDate) {
+                currentDate = newDate;
+                console.log('Midnight crossed - refreshing dashboard data...');
+                location.reload();
+            }
+        }
+    }, 1000); // Check every second around midnight
 </script>
 
 </body>

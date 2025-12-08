@@ -1,5 +1,5 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/../inc/functions.php';
@@ -328,7 +328,7 @@ $totalPages = ceil($totalRows / $perPage);
 
   <tr onclick="window.location.href='user_detail.php?id=<?= $userId ?>'">
       <td><?= $i++; ?></td>
-      <td><span class="name-badge"><?= htmlspecialchars($row['name']); ?></span></td>
+      <td><span class="name-badge"><?= ($row['name'] === $row['phone'] && $voucherUsername !== 'N/A') ? htmlspecialchars($voucherUsername) : htmlspecialchars($row['name']); ?></span></td>
       <td><?= htmlspecialchars($row['phone']); ?></td>
       <td><?= htmlspecialchars($row['role']); ?></td>
       <td><span class="status-badge <?= ($row['status']==='active')?'status-active':'status-inactive' ?>"><?= ucfirst($row['status']) ?></span></td>

@@ -4,13 +4,13 @@ $config = [
     'db' => [
         'host' => '127.0.0.1',
         'dbname' => 'radius',
-        'user' => 'root',
-        'pass' => 'root',
+        'user' => 'leokonnect_app',
+        'pass' => 'LeoKonnect1998???',
         'charset' => 'utf8mb4'
     ],
     'app' => [
         'base_url' => 'https://yourdomain.com/public',
-        'jwt_secret' => 'change_this_secret_for_sessions'
+        'jwt_secret' => 'Dvdjesse1998...'
     ],
     'mpesa' => [
         'consumer_key' => 'YOUR_CONSUMER_KEY',

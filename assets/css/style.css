@@ -141,10 +141,14 @@ nav a:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
+
+.btn-outline {
     color:#28a745;
     padding:8px 18px;
     border-radius:6px;
-    text-decoration:none
+    text-decoration:none;
+    border: 2px solid #28a745;
+    transition: all 0.3s ease;
 }
 
 .btn-outline:hover{
@@ -353,6 +357,8 @@ main {
   box-shadow: var(--shadow-md);
   background: linear-gradient(135deg, rgba(0, 104, 55, 0.02), rgba(40, 167, 69, 0.02));
 }
+
+.plan-card {
   padding: 30px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, .05);
   position: relative;

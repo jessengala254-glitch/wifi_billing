@@ -509,17 +509,8 @@ if ($type === 'create_voucher') {
         $expiry
     ]);
 
-    // --- Create payment record ---
-    $paymentInsert = $pdo->prepare("
-        INSERT INTO payments (user_id, plan_id, phone, amount, status, created_at)
-        VALUES (?, ?, ?, ?, 'success', NOW())
-    ");
-    $paymentInsert->execute([
-        $user_id,
-        $plan['id'],
-        $customer_phone,
-        $plan['price'] ?? 0
-    ]);
+    // --- Payment record is created by payments.php, not here ---
+    // (Removed duplicate INSERT to avoid double payment records)
 
     // --- Log voucher creation ---
     $pdo->prepare("
@@ -550,8 +541,8 @@ if ($type === 'create_voucher') {
     ]);
 }
 
-// -------------------- Rate-limiting check for authenticate/authorize --------------------
-if (in_array($type, ['authenticate','authorize'])) {
+// -------------------- Rate-limiting check for authorize only --------------------
+if ($type === 'authorize') {
     if (too_many_attempts($pdo, $username, $client_ip)) {
         record_login_attempt($pdo, $username, $client_ip);
         $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip, mac, framed_ip) VALUES (?, ?, ?, ?, ?, ?, ?)")->execute([$username, $type, 'reject', 'rate_limit_exceeded', $client_ip, $mac, $framed_ip]);
@@ -561,28 +552,10 @@ if (in_array($type, ['authenticate','authorize'])) {
 
 // -------------------- 1) AUTHENTICATE --------------------
 if ($type === 'authenticate') {
-    record_login_attempt($pdo, $username, $client_ip);
-
-    $stmt = $pdo->prepare("SELECT id, password, status FROM vouchers WHERE username = ? LIMIT 1");
-    $stmt->execute([$username]);
-    $v = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$v) {
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip, mac, framed_ip) VALUES (?, 'authenticate', 'reject', ?, ?, ?, ?)")->execute([$username, 'voucher_not_found', $client_ip, $mac, $framed_ip]);
-        respond(['result' => 'reject']);
-    }
-    if ($v['status'] !== 'active') {
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authenticate', 'reject', ?, ?)")->execute([$username, 'voucher_not_active', $client_ip]);
-        respond(['result' => 'reject', 'message' => 'Voucher not active']);
-    }
-    if (!password_verify($password, $v['password'])) {
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authenticate', 'reject', ?, ?)")->execute([$username, 'bad_password', $client_ip]);
-        respond(['result' => 'reject']);
-    }
-
-    // password ok
-    $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authenticate', 'accept', ?, ?)")->execute([$username, 'password_ok', $client_ip]);
-    respond(['result' => 'accept', 'reply_attributes' => ['Session-Timeout' => 3600]]);
+    // FreeRADIUS SQL module handles authentication directly via radcheck table
+    // REST API is only used for authorization and accounting
+    // Return accept to let SQL module handle password verification
+    respond(['result' => 'noop', 'message' => 'Use SQL module for authentication']);
 }
 
 // -------------------- 2) AUTHORIZE --------------------
@@ -594,8 +567,9 @@ if ($type === 'authorize') {
     $v = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$v) {
-        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authorize', 'reject', ?, ?)")->execute([$username, 'voucher_not_found', $client_ip]);
-        respond(['result' => 'reject', 'message' => 'Voucher not found']);
+        // User not in vouchers table - let SQL module handle it (for PPPoE, etc.)
+        $pdo->prepare("INSERT INTO radius_logs (username, event_type, result, message, client_ip) VALUES (?, 'authorize', 'noop', ?, ?)")->execute([$username, 'not_in_vouchers_fallback_to_sql', $client_ip]);
+        respond(['result' => 'noop', 'message' => 'User not in vouchers, try SQL module']);
     }
 
     // ✅ CHECK EXPIRY FIRST (before status check)

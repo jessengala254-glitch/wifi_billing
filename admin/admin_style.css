@@ -684,7 +684,10 @@ body {
 }
 
 .topbar-left .logo i {
-    color: white;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     font-size: 24px;
 }
 
@@ -763,6 +766,13 @@ body {
 
       .sidebar .logo:hover {
         transform: scale(1.05);
+      }
+
+      .sidebar .logo i {
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
 
       .sidebar .logo span {
@@ -1134,6 +1144,12 @@ tbody tr:last-child td {
 
 tbody tr:hover {
   background-color: #f8f9fa;
+}
+
+tbody tr[onclick]:hover {
+  background-color: #e8f5e9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 td {
