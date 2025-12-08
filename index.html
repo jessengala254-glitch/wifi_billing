@@ -11,7 +11,7 @@
 <body>
 <header class="navbar">
   <div class="container nav-flex">
-      <a href="index.php" class="logo">
+      <a href="#" class="logo">
         <span class="icon-wifi"></span> Leo <span>Konnect</span>
       </a>
     <nav>
@@ -278,12 +278,35 @@
 </div>
 
 <script>
+// MikroTik variables (will be replaced by MikroTik router)
+const MIKROTIK_MAC = '$(mac)' || '';
+const MIKROTIK_IP = '$(ip)' || '';
+const MIKROTIK_LINK_ORIG = '$(link-orig)' || '';
+
 // Get URL parameters
 function getUrlParams() {
     const params = new URLSearchParams(window.location.search);
+    
+    // Try to get MAC and IP from multiple sources:
+    // 1. MikroTik template variables (preferred)
+    // 2. URL parameters
+    // 3. Empty string as fallback
+    const mac = MIKROTIK_MAC !== '$(mac)' ? MIKROTIK_MAC : 
+                (params.get('mac') || params.get('mac-address') || '');
+    
+    const ip = MIKROTIK_IP !== '$(ip)' ? MIKROTIK_IP : 
+               (params.get('ip') || params.get('client-ip') || '');
+    
+    const returnUrl = MIKROTIK_LINK_ORIG !== '$(link-orig)' ? MIKROTIK_LINK_ORIG :
+                      (params.get('return_url') || 'http://www.google.com');
+    
+    console.log('Captured parameters:', { mac, ip, returnUrl });
+    
     return {
         from_captive: params.get('from_captive') || 0,
-        return_url: params.get('return_url') || 'http://www.google.com'
+        return_url: returnUrl,
+        mac: mac,
+        ip: ip
     };
 }
 
@@ -293,10 +316,12 @@ function getDurationInfo(minutes) {
         return { text: '1 month', icon: 'icon-clock' };
     } else if (minutes >= 10080) { // 7 days
         return { text: '1 week', icon: 'icon-clock' };
-    } else if (minutes >= 1440) { // 1 day
-        return { text: '1 day', icon: 'icon-clock' };
-    } else if (minutes >= 60) { // 1 hour
-        return { text: '1 hour', icon: 'icon-clock' };
+    } else if (minutes >= 1440) { // 1 day or more
+        const days = Math.floor(minutes / 1440);
+        return { text: days === 1 ? '1 day' : days + ' days', icon: 'icon-clock' };
+    } else if (minutes >= 60) { // 1 hour or more
+        const hours = Math.floor(minutes / 60);
+        return { text: hours === 1 ? '1 hour' : hours + ' hours', icon: 'icon-clock' };
     } else {
         return { text: minutes + ' minutes', icon: 'icon-clock' };
     }
@@ -347,7 +372,7 @@ async function loadPlans() {
                         <li>Unlimited data for ${escapeHtml(duration.text)}</li>
                         <li>Ultra high-speed internet</li>
                         <li>Instant activation</li>
-                        <li>Multiple device support</li>
+                        
                     </ul>
                     
                     <button class="btn-primary" onclick="openPurchaseModal(${plan.id}, '${escapeHtml(plan.title)}', ${plan.price})">Choose Plan</button>
@@ -378,11 +403,22 @@ function openPurchaseModal(planId, planTitle, planPrice) {
     document.getElementById('payButtonText').textContent = 'Pay Ksh ' + formatNumber(planPrice) + ' via M-Pesa';
     document.getElementById('modalReturnUrl').value = urlParams.return_url;
     
-    // Set user IP
-    fetch('https://api.ipify.org?format=json')
-        .then(res => res.json())
-        .then(data => document.getElementById('userIp').value = data.ip)
-        .catch(() => document.getElementById('userIp').value = '');
+    // Set MAC address from URL parameters (MikroTik provides this)
+    if (urlParams.mac) {
+        document.getElementById('userMac').value = urlParams.mac;
+        console.log('MAC captured:', urlParams.mac);
+    }
+    
+    // Set IP address from URL or fetch it
+    if (urlParams.ip) {
+        document.getElementById('userIp').value = urlParams.ip;
+        console.log('IP captured:', urlParams.ip);
+    } else {
+        fetch('https://api.ipify.org?format=json')
+            .then(res => res.json())
+            .then(data => document.getElementById('userIp').value = data.ip)
+            .catch(() => document.getElementById('userIp').value = '');
+    }
     
     // Reset form and messages
     document.getElementById('payForm').reset();
@@ -434,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const formData = new FormData(payForm);
-            const res = await fetch('api/payments.php', { method: 'POST', body: formData });
+            const res = await fetch('http://192.168.10.68/leokonnect/api/payments.php', { method: 'POST', body: formData });
             const data = await res.json();
 
             // Check for errors
@@ -460,7 +496,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Poll for payment confirmation
                 const poll = setInterval(async () => {
-                    const checkRes = await fetch(`api/check_payment.php?payment_id=${paymentId}`);
+                    const checkRes = await fetch(`http://192.168.10.68/leokonnect/api/check_payment.php?payment_id=${paymentId}`);
                     const checkData = await checkRes.json();
 
                     if (checkData.status === 'success') {
@@ -527,9 +563,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusDiv.innerHTML = successMsg;
                 
                 if (data.voucher) {
-                    const username = data.voucher.username || (data.voucher.voucher && data.voucher.voucher.username);
-                    const password = data.voucher.password || (data.voucher.voucher && data.voucher.voucher.password);
-                    const expiry = data.voucher.new_expiry || data.voucher.expiry || (data.voucher.voucher && data.voucher.voucher.expiry);
+                    // Extract voucher details from nested response
+                    const voucherData = data.voucher.voucher || data.voucher;
+                    const sessionData = data.voucher.session || {};
+                    
+                    const username = sessionData.hotspot_username || voucherData.username;
+                    const password = sessionData.hotspot_password || voucherData.password;
+                    const expiry = sessionData.expires_at || voucherData.expiry || data.voucher.new_expiry;
                     
                     const authNote = autoAuth
                         ? '<p class="voucher-note success-note"><span class="icon-rocket"></span> You are automatically connected! No manual login needed.<br>Use these credentials as backup if you get disconnected.</p>'
@@ -555,11 +595,39 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `;
                     
-                    if (fromCaptive && autoAuth) {
-                        // Redirect faster if auto-authenticated
+                    // Auto-submit login form if auto-authentication is enabled
+                    if (autoAuth && fromCaptive && username && password) {
+                        statusDiv.className = "status-message success";
+                        statusDiv.innerHTML = '<div class="spinner"></div> <span><strong>Payment Successful!</strong><br>Connecting you to WiFi automatically...</span>';
+                        
+                        // Submit login form to MikroTik
                         setTimeout(() => {
-                            window.location.href = returnUrl || 'http://www.google.com';
-                        }, 2000);
+                            const loginForm = document.createElement('form');
+                            loginForm.method = 'POST';
+                            loginForm.action = 'http://192.168.10.67/login';
+                            
+                            const usernameInput = document.createElement('input');
+                            usernameInput.type = 'hidden';
+                            usernameInput.name = 'username';
+                            usernameInput.value = username;
+                            
+                            const passwordInput = document.createElement('input');
+                            passwordInput.type = 'hidden';
+                            passwordInput.name = 'password';
+                            passwordInput.value = password;
+                            
+                            const dstInput = document.createElement('input');
+                            dstInput.type = 'hidden';
+                            dstInput.name = 'dst';
+                            dstInput.value = returnUrl || 'http://www.google.com';
+                            
+                            loginForm.appendChild(usernameInput);
+                            loginForm.appendChild(passwordInput);
+                            loginForm.appendChild(dstInput);
+                            
+                            document.body.appendChild(loginForm);
+                            loginForm.submit();
+                        }, 1500);
                     } else if (fromCaptive) {
                         setTimeout(() => {
                             window.location.href = returnUrl || 'http://www.google.com';
